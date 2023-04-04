@@ -77,7 +77,7 @@ defmodule Solid do
   with the accumulated errors and a partial result
   """
   @spec render!(Solid.Template.t(), map, Keyword.t()) :: iolist
-  def render!(%Template{} = template, hash, options \\ []) do
+  def render!(%Template{} = template, hash \\ %{}, options \\ []) do
     case render(template, hash, options) do
       {:ok, result} ->
         result
@@ -101,7 +101,7 @@ defmodule Solid do
       fs = Solid.LocalFileSystem.new("/path/to/template/dir/")
       Solid.render(template, vars, [file_system: {Solid.LocalFileSystem, fs}])
   """
-  def render(template_or_text, values, options \\ [])
+  def render(template_or_text, values \\ %Context{}, options \\ [])
 
   @spec render(%Template{}, map, Keyword.t()) :: {:ok, iolist} | {:error, list(errors), iolist}
   @spec render(list, %Context{}, Keyword.t()) :: {iolist, %Context{}}
