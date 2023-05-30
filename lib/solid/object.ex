@@ -13,8 +13,13 @@ defmodule Solid.Object do
     {:ok, value, context} =
       Argument.get(argument, context, [filters: object[:filters]] ++ options)
 
-    {:ok, stringify!(value), context}
+    value = apply_lazy(value) |> stringify!()
+
+    {:ok, value, context}
   end
+
+  defp apply_lazy(fun) when is_function(fun, 0), do: fun.()
+  defp apply_lazy(value), do: value
 
   defp stringify!(value) when is_list(value) do
     value
