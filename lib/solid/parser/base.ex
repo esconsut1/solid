@@ -37,39 +37,32 @@ defmodule Solid.Parser.Base do
         |> tag(:object)
 
       base_tags =
-        [
-          Solid.Tag.Break,
-          Solid.Tag.Continue,
-          Solid.Tag.Counter,
-          Solid.Tag.Comment,
-          Solid.Tag.Assign,
-          Solid.Tag.Capture,
-          Solid.Tag.If,
-          Solid.Tag.Case,
-          Solid.Tag.For,
-          Solid.Tag.Raw,
-          Solid.Tag.Cycle,
-          Solid.Tag.Render
-        ]
-        |> Enum.reject(&(&1 in excluded_tags))
-        |> Enum.map(fn tag ->
+        for tag <- [
+              Solid.Tag.Break,
+              Solid.Tag.Continue,
+              Solid.Tag.Counter,
+              Solid.Tag.Comment,
+              Solid.Tag.Assign,
+              Solid.Tag.Capture,
+              Solid.Tag.If,
+              Solid.Tag.Case,
+              Solid.Tag.For,
+              Solid.Tag.Raw,
+              Solid.Tag.Cycle,
+              Solid.Tag.Render,
+              Solid.Tag.Tablerow
+            ],
+            tag not in excluded_tags do
           tag(tag.spec(__MODULE__), tag)
-        end)
+        end
 
       custom_tags =
         if custom_tag_modules != [] do
-          custom_tag_modules
-          |> Enum.uniq()
-          |> Enum.map(fn module ->
-            tag(module.spec(__MODULE__), module)
-          end)
+          for module <- Enum.uniq(custom_tag_modules), do: tag(module.spec(__MODULE__), module)
         end
 
       all_tags = base_tags ++ (custom_tags || [])
-
-      tags =
-        choice(all_tags)
-        |> tag(:tag)
+      tags = choice(all_tags) |> tag(:tag)
 
       text =
         lookahead_not(

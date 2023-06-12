@@ -159,39 +159,48 @@ defmodule Solid.Filter do
   Converts a `DateTime`/`NaiveDateTime` struct into another date format.
   The input may also be a Unix timestamp or an ISO 8601 date string.
 
-  The format for this syntax is the same as `Calendar.strftime/2`.
+  The format for this syntax is the same as `Timex.format/3`.
 
   To get the current time, pass the special word `"now"` (or `"today"`) to `date`.
   """
   @spec date(DateTime.t() | NaiveDateTime.t() | integer() | String.t(), String.t()) :: String.t()
-  def date(date, format) when is_map(date) and is_binary(format) do
+  def date(input, format \\ "%F %T")
+  def date(nil, _), do: nil
+  def date(input, nil), do: date(input)
+  def date(input, ""), do: date(input)
+  def date(input, []), do: date(input)
+
+  def date(input, format) when input in ["now", "today"] do
+    date(Timex.now(:local), format)
+  end
+
+  def date(input, format) when is_binary(input) do
+    case NaiveDateTime.from_iso8601(input) do
+      {:ok, input_date} ->
+        date(input_date, format)
+
+      {:error, :invalid_format} ->
+        case Timex.parse(input, "%a %b %d %T %Y", :strftime) do
+          {:ok, input_date} -> date(input_date, format)
+          _ -> input
+        end
+    end
+  end
+
+  def date(input, format) when is_integer(input) do
     try do
-      Calendar.strftime(date, format)
+      Timex.from_unix(input) |> date(format)
     rescue
-      KeyError -> nil
-      ArgumentError -> nil
+      _ -> input
     end
   end
 
-  def date(date, format) when is_integer(date) do
-    case DateTime.from_unix(date) do
-      {:ok, datetime} -> date(datetime, format)
-      _ -> nil
+  def date(input, format) do
+    case Timex.format(input, format, :strftime) do
+      {:ok, date_str} -> date_str
+      _ -> input
     end
   end
-
-  def date(date, format) when date in ["now", "today"] do
-    date(NaiveDateTime.local_now(), format)
-  end
-
-  def date(date, format) when is_binary(date) do
-    case DateTime.from_iso8601(date) do
-      {:ok, datetime, _} -> date(datetime, format)
-      _ -> date
-    end
-  end
-
-  def date(_, _), do: nil
 
   @doc """
   Allows you to specify a fallback in case a value doesn’t exist.
@@ -273,7 +282,7 @@ defmodule Solid.Filter do
   ""
   """
   @spec downcase(any) :: String.t()
-  def downcase(input), do: input |> to_string() |> String.downcase()
+  def downcase(input), do: to_string(input) |> String.downcase()
 
   @doc """
   Returns the first item of an array.
@@ -648,10 +657,16 @@ defmodule Solid.Filter do
   iex> Solid.Filter.slice("Liquid", -3, 2)
   "ui"
   """
-  @spec slice(String.t(), integer, non_neg_integer | nil) :: String.t()
+  @spec slice(String.t() | list(), integer, non_neg_integer | nil) :: String.t()
   def slice(input, offset, length \\ nil)
-  def slice(input, offset, nil), do: to_string(input) |> String.at(offset)
-  def slice(input, offset, length), do: to_string(input) |> String.slice(offset, length)
+
+  def slice(input, offset, nil) when is_binary(input), do: to_string(input) |> String.at(offset)
+
+  def slice(input, offset, length) when is_binary(input),
+    do: to_string(input) |> String.slice(offset, length)
+
+  def slice(input, _offset, nil) when is_list(input), do: input
+  def slice(input, offset, length) when is_list(input), do: Enum.slice(input, offset, length)
 
   @doc """
   Sorts items in an array by a property of an item in the array. The order of the sorted array is case-sensitive.

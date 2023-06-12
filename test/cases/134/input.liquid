@@ -1,0 +1,7 @@
+{% tablerow product in collection.products cols: 2 %}
+  {{ product.title }}
+{% endtablerow %}
+
+{% tablerow product in collection.products cols: 2 offset: 3 %}
+  {{ product.title }}
+{% endtablerow %}

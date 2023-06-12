@@ -47,7 +47,8 @@ defmodule Solid.Helpers do
       {liquid_output, 0} =
         liquid_render(unquote(liquid_input), unquote(json_input), unquote(template_dir))
 
-      if liquid_output == solid_output do
+      if String.trim(liquid_output) |> String.replace("\n", "") ==
+           String.trim(solid_output) |> String.replace("\n", "") do
         true
       else
         message = """

@@ -1,0 +1,12 @@
+{
+  "collection": {
+    "products": [
+      { "title": "Cool Shirt" },
+      { "title": "Alien Poster" },
+      { "title": "Batman Poster" },
+      { "title": "Bullseye Shirt" },
+      { "title": "Another Classic Vinyl" },
+      { "title": "Awesome Jeans" }
+    ]
+  }
+}

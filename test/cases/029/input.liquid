@@ -1,3 +1,7 @@
 {% assign beatles = "John, Paul, George, Ringo" %}
 
 {{ beatles | split: ", " | join: " " }}
+
+{% assign beatles = "John, Paul, George, Ringo" | split: ", " %}
+
+{{ beatles | join: " and " }}
