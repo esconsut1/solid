@@ -90,7 +90,7 @@ defmodule Solid.Context do
   defp do_get_in(data, []), do: {:ok, data}
 
   defp do_get_in(data, ["size"]) when is_list(data) do
-    {:ok, Enum.count(data)}
+    {:ok, length(data)}
   end
 
   defp do_get_in(data, ["size"]) when is_struct(data) do
@@ -145,6 +145,15 @@ defmodule Solid.Context do
 
   defp do_get_in(_, _), do: {:error, :not_found}
 
-  defp apply_lazy(fun) when is_function(fun, 0), do: fun.()
+  defp apply_lazy(fun) when is_function(fun, 0) do
+    task = Task.async(fun)
+    timeout = :timer.minutes(3)
+
+    case Task.yield(task, timeout) || Task.shutdown(task) do
+      {:ok, result} -> result
+      nil -> nil
+    end
+  end
+
   defp apply_lazy(value), do: value
 end

@@ -109,26 +109,25 @@ defmodule Solid.Tag.For do
     length = Enum.count(enumerable)
 
     {result, context} =
-      enumerable
-      |> Enum.with_index(0)
-      |> Enum.reduce({[], context}, fn {v, index}, {acc_result, acc_context_initial} ->
-        acc_context =
-          acc_context_initial
-          |> set_enumerable_value(enumerable_key, v)
-          |> maybe_put_forloop_map(enumerable_key, index, length)
+      for {v, index} <- Enum.with_index(enumerable, 0), reduce: {[], context} do
+        {acc_result, acc_context_initial} ->
+          acc_context =
+            acc_context_initial
+            |> set_enumerable_value(enumerable_key, v)
+            |> maybe_put_forloop_map(enumerable_key, index, length)
 
-        try do
-          {result, acc_context} = Solid.render(exp, acc_context, options)
-          acc_context = restore_initial_forloop_value(acc_context, acc_context_initial)
-          {[result | acc_result], acc_context}
-        catch
-          {:break_exp, result, context} ->
-            throw({:result, [result | acc_result], context})
+          try do
+            {result, acc_context} = Solid.render(exp, acc_context, options)
+            acc_context = restore_initial_forloop_value(acc_context, acc_context_initial)
+            {[result | acc_result], acc_context}
+          catch
+            {:break_exp, result, context} ->
+              throw({:result, [result | acc_result], context})
 
-          {:continue_exp, result, context} ->
-            {[result | acc_result], context}
-        end
-      end)
+            {:continue_exp, result, context} ->
+              {[result | acc_result], context}
+          end
+      end
 
     context = %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
     {[text: Enum.reverse(result)], context}

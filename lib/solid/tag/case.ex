@@ -5,11 +5,10 @@ defmodule Solid.Tag.Case do
   @behaviour Solid.Tag
 
   def when_join(whens) do
-    whens
-    |> Enum.flat_map(fn {:when, values} ->
-      values
-      |> Enum.filter(fn {key, _} -> key == :value end)
-      |> Enum.map(fn {_, val} -> {val, Keyword.get(values, :result)} end)
+    Enum.flat_map(whens, fn {:when, values} ->
+      for {key, val} <- values, key == :value do
+        {val, Keyword.get(values, :result)}
+      end
     end)
   end
 

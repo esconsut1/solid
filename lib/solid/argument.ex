@@ -62,10 +62,11 @@ defmodule Solid.Argument do
 
   defp apply_filters(input, [{:filter, [filter, {:arguments, args}]} | filters], context, opts) do
     {values, context} =
-      Enum.reduce(args, {[], context}, fn arg, {values, context} ->
-        {:ok, value, context} = get([arg], context, opts)
-        {[value | values], context}
-      end)
+      for arg <- args, reduce: {[], context} do
+        {values, context} ->
+          {:ok, value, context} = get([arg], context, opts)
+          {[value | values], context}
+      end
 
     {result, context} =
       filter
@@ -84,12 +85,11 @@ defmodule Solid.Argument do
   @spec parse_named_arguments(list, Context.t(), Keyword.t()) :: {:ok, list, Context.t()}
   def parse_named_arguments(ast, context, opts \\ []) do
     {named_arguments, context} =
-      ast
-      |> Enum.chunk_every(2)
-      |> Enum.reduce({%{}, context}, fn [key, value_or_field], {named_arguments, context} ->
-        {:ok, value, context} = get([value_or_field], context, opts)
-        {Map.put(named_arguments, key, value), context}
-      end)
+      for [key, value_or_field] <- Enum.chunk_every(ast, 2), reduce: {%{}, context} do
+        {named_arguments, context} ->
+          {:ok, value, context} = get([value_or_field], context, opts)
+          {Map.put(named_arguments, key, value), context}
+      end
 
     {:ok, List.wrap(named_arguments), context}
   end

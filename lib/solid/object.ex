@@ -18,14 +18,20 @@ defmodule Solid.Object do
     {:ok, value, context}
   end
 
-  defp apply_lazy(fun) when is_function(fun, 0), do: fun.()
+  defp apply_lazy(fun) when is_function(fun, 0) do
+    task = Task.async(fun)
+    timeout = :timer.minutes(3)
+
+    case Task.yield(task, timeout) || Task.shutdown(task) do
+      {:ok, result} -> result
+      nil -> nil
+    end
+  end
+
   defp apply_lazy(value), do: value
 
   defp stringify!(value) when is_list(value) do
-    value
-    |> List.flatten()
-    |> Enum.map(&stringify!/1)
-    |> Enum.join()
+    for v <- List.flatten(value), into: "", do: stringify!(v)
   end
 
   defp stringify!(value) when is_tuple(value) do

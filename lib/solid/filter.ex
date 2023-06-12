@@ -24,13 +24,13 @@ defmodule Solid.Filter do
     args_with_opts = args ++ [opts]
 
     cond do
-      filter_exists?({custom_module, filter, Enum.count(args_with_opts)}) ->
+      filter_exists?({custom_module, filter, length(args_with_opts)}) ->
         {:ok, apply_filter({custom_module, filter, args_with_opts})}
 
-      filter_exists?({custom_module, filter, Enum.count(args)}) ->
+      filter_exists?({custom_module, filter, length(args)}) ->
         {:ok, apply_filter({custom_module, filter, args})}
 
-      filter_exists?({__MODULE__, filter, Enum.count(args)}) ->
+      filter_exists?({__MODULE__, filter, length(args)}) ->
         {:ok, apply_filter({__MODULE__, filter, args})}
 
       true ->
@@ -380,7 +380,7 @@ defmodule Solid.Filter do
   ["A", 1]
   """
   def map(input, property) when is_list(input) do
-    Enum.map(input, & &1[property])
+    for i <- input, do: i[property]
   end
 
   @doc """
@@ -600,7 +600,7 @@ defmodule Solid.Filter do
   5
   """
   @spec size(String.t() | list | map) :: non_neg_integer
-  def size(input) when is_list(input), do: Enum.count(input)
+  def size(input) when is_list(input), do: length(input)
   def size(input) when is_struct(input), do: Map.from_struct(input) |> Enum.count()
   def size(input) when is_map(input), do: Enum.count(input)
   def size(input) when is_bitstring(input), do: String.length(input)

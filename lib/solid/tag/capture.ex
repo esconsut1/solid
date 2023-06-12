@@ -37,12 +37,8 @@ defmodule Solid.Tag.Capture do
       ) do
     {captured, context} = Solid.render(result, context, options)
 
-    context_vars =
-      put_in(
-        context.vars,
-        Enum.map(fields_name, &Access.key(&1, %{})),
-        IO.iodata_to_binary(captured)
-      )
+    fields = for field <- fields_name, do: Access.key(field, %{})
+    context_vars = put_in(context.vars, fields, IO.iodata_to_binary(captured))
 
     {[], %{context | vars: context_vars}}
   end

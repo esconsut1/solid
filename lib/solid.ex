@@ -116,18 +116,19 @@ defmodule Solid do
 
   def render(text, context = %Context{}, options) do
     {result, context} =
-      Enum.reduce(text, {[], context}, fn entry, {acc, context} ->
-        try do
-          {result, context} = do_render(entry, context, options)
-          {[result | acc], context}
-        catch
-          {:break_exp, result, context} ->
-            throw({:break_exp, Enum.reverse([result | acc]), context})
+      for entry <- text, reduce: {[], context} do
+        {acc, context} ->
+          try do
+            {result, context} = do_render(entry, context, options)
+            {[result | acc], context}
+          catch
+            {:break_exp, result, context} ->
+              throw({:break_exp, Enum.reverse([result | acc]), context})
 
-          {:continue_exp, result, context} ->
-            throw({:continue_exp, Enum.reverse([result | acc]), context})
-        end
-      end)
+            {:continue_exp, result, context} ->
+              throw({:continue_exp, Enum.reverse([result | acc]), context})
+          end
+      end
 
     {Enum.reverse(result), context}
   end
