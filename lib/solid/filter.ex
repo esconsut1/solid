@@ -142,7 +142,7 @@ defmodule Solid.Filter do
   "1"
   """
   @spec capitalize(any) :: String.t()
-  def capitalize(input), do: Kernel.to_string(input) |> String.capitalize()
+  def capitalize(input), do: to_string(input) |> String.capitalize()
 
   @doc """
   Rounds the input up to the nearest whole number. Liquid tries to convert the input to a number before the filter is applied.
@@ -257,7 +257,7 @@ defmodule Solid.Filter do
   ""
   """
   @spec upcase(any) :: String.t()
-  def upcase(input), do: input |> Kernel.to_string() |> String.upcase()
+  def upcase(input), do: input |> to_string() |> String.upcase()
 
   @doc """
   Makes each character in a string lowercase.
@@ -273,7 +273,7 @@ defmodule Solid.Filter do
   ""
   """
   @spec downcase(any) :: String.t()
-  def downcase(input), do: input |> Kernel.to_string() |> String.downcase()
+  def downcase(input), do: input |> to_string() |> String.downcase()
 
   @doc """
   Returns the first item of an array.
@@ -484,8 +484,8 @@ defmodule Solid.Filter do
   """
   @spec remove(String.t(), String.t()) :: String.t()
   def remove(input, string) do
-    input = Kernel.to_string(input)
-    string = Kernel.to_string(string)
+    input = to_string(input)
+    string = to_string(string)
     String.replace(input, string, "")
   end
 
@@ -519,9 +519,9 @@ defmodule Solid.Filter do
   """
   @spec replace(String.t(), String.t(), String.t()) :: String.t()
   def replace(input, string, replacement \\ "") do
-    input = Kernel.to_string(input)
-    string = Kernel.to_string(string)
-    replacement = Kernel.to_string(replacement)
+    input = to_string(input)
+    string = to_string(string)
+    replacement = to_string(replacement)
     String.replace(input, string, replacement)
   end
 
@@ -533,10 +533,10 @@ defmodule Solid.Filter do
   """
   @spec replace_first(String.t(), String.t(), String.t()) :: String.t()
   def replace_first(input, string, replacement \\ "") do
-    input = Kernel.to_string(input)
-    string = Kernel.to_string(string)
-    replacement = Kernel.to_string(replacement)
-    String.replace_prefix(input, string, replacement)
+    input = to_string(input)
+    string = to_string(string)
+    replacement = to_string(replacement)
+    String.replace(input, string, replacement, global: false)
   end
 
   @doc """
@@ -547,10 +547,35 @@ defmodule Solid.Filter do
   """
   @spec replace_last(String.t(), String.t(), String.t()) :: String.t()
   def replace_last(input, string, replacement \\ "") do
-    input = Kernel.to_string(input)
-    string = Kernel.to_string(string)
-    replacement = Kernel.to_string(replacement)
-    String.replace_suffix(input, string, replacement)
+    input = to_string(input)
+    string = to_string(string)
+    replacement = to_string(replacement)
+
+    case last_index(input, string) do
+      nil ->
+        input
+
+      index ->
+        {prefix, suffix} = String.split_at(input, index)
+        prefix <> replace_first(suffix, string, replacement)
+    end
+  end
+
+  defp last_index(input, string) do
+    do_last_index(input, string, 0, nil)
+  end
+
+  defp do_last_index("", _string, _index, last), do: last
+
+  defp do_last_index(input, string, index, last) do
+    new_last =
+      if String.starts_with?(input, string) do
+        index
+      else
+        last
+      end
+
+    do_last_index(String.slice(input, 1..-1), string, index + 1, new_last)
   end
 
   @doc """
@@ -589,7 +614,7 @@ defmodule Solid.Filter do
   "          So much room for activities!"
   """
   @spec rstrip(String.t()) :: String.t()
-  def rstrip(input), do: Kernel.to_string(input) |> String.trim_trailing()
+  def rstrip(input), do: to_string(input) |> String.trim_trailing()
 
   @doc """
   Returns the number of characters in a string or the number of items in an array.
@@ -625,8 +650,8 @@ defmodule Solid.Filter do
   """
   @spec slice(String.t(), integer, non_neg_integer | nil) :: String.t()
   def slice(input, offset, length \\ nil)
-  def slice(input, offset, nil), do: Kernel.to_string(input) |> String.at(offset)
-  def slice(input, offset, length), do: Kernel.to_string(input) |> String.slice(offset, length)
+  def slice(input, offset, nil), do: to_string(input) |> String.at(offset)
+  def slice(input, offset, length), do: to_string(input) |> String.slice(offset, length)
 
   @doc """
   Sorts items in an array by a property of an item in the array. The order of the sorted array is case-sensitive.
@@ -656,7 +681,7 @@ defmodule Solid.Filter do
   "So much room for activities!"
   """
   @spec strip(String.t()) :: String.t()
-  def strip(input), do: Kernel.to_string(input) |> String.trim()
+  def strip(input), do: to_string(input) |> String.trim()
 
   @doc """
   Multiplies a number by another number.
@@ -777,7 +802,7 @@ defmodule Solid.Filter do
   """
   @spec strip_newlines(iodata()) :: String.t()
   def strip_newlines(iodata) do
-    binary = Kernel.to_string(iodata)
+    binary = to_string(iodata)
     pattern = :binary.compile_pattern(["\r\n", "\n"])
     String.replace(binary, pattern, "")
   end
@@ -794,7 +819,7 @@ defmodule Solid.Filter do
   """
   @spec newline_to_br(iodata()) :: String.t()
   def newline_to_br(iodata) do
-    binary = Kernel.to_string(iodata)
+    binary = to_string(iodata)
     pattern = :binary.compile_pattern(["\r\n", "\n"])
     String.replace(binary, pattern, fn x -> "<br />#{x}" end)
   end
@@ -844,7 +869,7 @@ defmodule Solid.Filter do
   @spec strip_html(iodata()) :: String.t()
   def strip_html(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> String.replace(@html_blocks, "")
     |> String.replace(@html_tags, "")
   end
@@ -861,7 +886,7 @@ defmodule Solid.Filter do
   """
   def url_encode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> URI.encode_www_form()
   end
 
@@ -874,7 +899,7 @@ defmodule Solid.Filter do
   """
   def url_decode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> URI.decode_www_form()
   end
 
@@ -888,7 +913,7 @@ defmodule Solid.Filter do
   @spec escape(iodata()) :: String.t()
   def escape(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> Solid.HTML.html_escape()
   end
 
@@ -907,7 +932,7 @@ defmodule Solid.Filter do
   @spec escape_once(iodata()) :: String.t()
   def escape_once(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> String.replace(@escape_once_regex, &Solid.HTML.replacements/1)
   end
 
@@ -920,7 +945,7 @@ defmodule Solid.Filter do
   @spec base64_encode(iodata()) :: String.t()
   def base64_encode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> Base.encode64()
   end
 
@@ -933,7 +958,7 @@ defmodule Solid.Filter do
   @spec base64_decode(iodata()) :: String.t()
   def base64_decode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> Base.decode64!()
   end
 
@@ -946,7 +971,7 @@ defmodule Solid.Filter do
   @spec base64_url_safe_encode(iodata()) :: String.t()
   def base64_url_safe_encode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> Base.url_encode64()
   end
 
@@ -959,7 +984,7 @@ defmodule Solid.Filter do
   @spec base64_url_safe_decode(iodata()) :: String.t()
   def base64_url_safe_decode(iodata) do
     iodata
-    |> Kernel.to_string()
+    |> to_string()
     |> Base.url_decode64!()
   end
 end
