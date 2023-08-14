@@ -16,8 +16,7 @@ defmodule Solid.Filter do
   {:error, %Solid.UndefinedFilterError{filter: "no_filter_here"}, 1}
   """
   def apply(filter, args, opts) do
-    custom_module =
-      opts[:custom_filters] || Application.get_env(:solid, :custom_filters, __MODULE__)
+    custom_module = opts[:custom_filters] || Application.get_env(:solid, :custom_filters, __MODULE__)
 
     strict_variables = Keyword.get(opts, :strict_filters, false)
 
@@ -47,12 +46,10 @@ defmodule Solid.Filter do
   end
 
   defp filter_exists?({module, function, arity}) do
-    try do
-      function = String.to_existing_atom(function)
-      function_exported?(module, function, arity)
-    rescue
-      ArgumentError -> false
-    end
+    function = String.to_existing_atom(function)
+    function_exported?(module, function, arity)
+  rescue
+    ArgumentError -> false
   end
 
   defp any_to_float(string) when byte_size(string) > 0 do
@@ -142,7 +139,7 @@ defmodule Solid.Filter do
   "1"
   """
   @spec capitalize(any) :: String.t()
-  def capitalize(input), do: to_string(input) |> String.capitalize()
+  def capitalize(input), do: input |> to_string() |> String.capitalize()
 
   @doc """
   Rounds the input up to the nearest whole number. Liquid tries to convert the input to a number before the filter is applied.
@@ -171,7 +168,7 @@ defmodule Solid.Filter do
   def date(input, []), do: date(input)
 
   def date(input, format) when input in ["now", "today"] do
-    date(Timex.now(:local), format)
+    :calendar.local_time() |> NaiveDateTime.from_erl!() |> DateTime.from_naive!("Etc/UTC") |> date(format)
   end
 
   def date(input, format) when is_binary(input) do
@@ -188,11 +185,9 @@ defmodule Solid.Filter do
   end
 
   def date(input, format) when is_integer(input) do
-    try do
-      Timex.from_unix(input) |> date(format)
-    rescue
-      _ -> input
-    end
+    input |> Timex.from_unix() |> date(format)
+  rescue
+    _ -> input
   end
 
   def date(input, format) do
@@ -242,7 +237,7 @@ defmodule Solid.Filter do
   @spec divided_by(number, number) :: number
   def divided_by(input, operand) when is_integer(operand) do
     if i = any_to_float(input) do
-      (i / operand) |> Float.floor() |> trunc
+      (i / operand) |> Float.floor() |> trunc()
     end
   end
 
@@ -282,7 +277,7 @@ defmodule Solid.Filter do
   ""
   """
   @spec downcase(any) :: String.t()
-  def downcase(input), do: to_string(input) |> String.downcase()
+  def downcase(input), do: input |> to_string() |> String.downcase()
 
   @doc """
   Returns the first item of an array.
@@ -310,7 +305,7 @@ defmodule Solid.Filter do
   @spec floor(number | String.t()) :: integer
   def floor(input) do
     if i = any_to_float(input) do
-      Float.floor(i) |> trunc
+      i |> Float.floor() |> trunc()
     end
   end
 
@@ -369,7 +364,7 @@ defmodule Solid.Filter do
   "So much room for activities!          "
   """
   @spec lstrip(String.t()) :: String.t()
-  def lstrip(input), do: to_string(input) |> String.trim_leading()
+  def lstrip(input), do: input |> to_string() |> String.trim_leading()
 
   @doc """
   Split input string into an array of substrings separated by given pattern.
@@ -380,7 +375,7 @@ defmodule Solid.Filter do
   [""]
   """
   @spec split(any, String.t()) :: list(String.t())
-  def split(input, pattern), do: to_string(input) |> String.split(pattern)
+  def split(input, pattern), do: input |> to_string() |> String.split(pattern)
 
   @doc """
   Map through a list of hashes accessing `property`
@@ -423,9 +418,7 @@ defmodule Solid.Filter do
   3.357
   """
   @spec modulo(number, number) :: number
-  def modulo(dividend, divisor)
-      when is_integer(dividend) and is_integer(divisor),
-      do: Integer.mod(dividend, divisor)
+  def modulo(dividend, divisor) when is_integer(dividend) and is_integer(divisor), do: Integer.mod(dividend, divisor)
 
   # OTP 20+
   def modulo(dividend, divisor) do
@@ -440,7 +433,7 @@ defmodule Solid.Filter do
   end
 
   defp decimal_places(float) do
-    string = float |> Float.to_string()
+    string = Float.to_string(float)
     {start, _} = :binary.match(string, ".")
     byte_size(string) - start - 1
   end
@@ -470,7 +463,7 @@ defmodule Solid.Filter do
 
   def plus(input, number) when is_binary(input) do
     if x = any_to_float(input) do
-      plus(x, number) |> number_trunc
+      x |> plus(number) |> number_trunc()
     end
   end
 
@@ -623,7 +616,7 @@ defmodule Solid.Filter do
   "          So much room for activities!"
   """
   @spec rstrip(String.t()) :: String.t()
-  def rstrip(input), do: to_string(input) |> String.trim_trailing()
+  def rstrip(input), do: input |> to_string() |> String.trim_trailing()
 
   @doc """
   Returns the number of characters in a string or the number of items in an array.
@@ -635,7 +628,7 @@ defmodule Solid.Filter do
   """
   @spec size(String.t() | list | map) :: non_neg_integer
   def size(input) when is_list(input), do: length(input)
-  def size(input) when is_struct(input), do: Map.from_struct(input) |> Enum.count()
+  def size(input) when is_struct(input), do: input |> Map.from_struct() |> Enum.count()
   def size(input) when is_map(input), do: Enum.count(input)
   def size(input) when is_bitstring(input), do: String.length(input)
   def size(_input), do: 0
@@ -660,10 +653,9 @@ defmodule Solid.Filter do
   @spec slice(String.t() | list(), integer, non_neg_integer | nil) :: String.t()
   def slice(input, offset, length \\ nil)
 
-  def slice(input, offset, nil) when is_binary(input), do: to_string(input) |> String.at(offset)
+  def slice(input, offset, nil) when is_binary(input), do: input |> to_string() |> String.at(offset)
 
-  def slice(input, offset, length) when is_binary(input),
-    do: to_string(input) |> String.slice(offset, length)
+  def slice(input, offset, length) when is_binary(input), do: input |> to_string() |> String.slice(offset, length)
 
   def slice(input, _offset, nil) when is_list(input), do: input
   def slice(input, offset, length) when is_list(input), do: Enum.slice(input, offset, length)
@@ -696,7 +688,7 @@ defmodule Solid.Filter do
   "So much room for activities!"
   """
   @spec strip(String.t()) :: String.t()
-  def strip(input), do: to_string(input) |> String.trim()
+  def strip(input), do: input |> to_string() |> String.trim()
 
   @doc """
   Multiplies a number by another number.
@@ -783,10 +775,11 @@ defmodule Solid.Filter do
   def truncatewords(nil, _max_words, _ellipsis), do: ""
 
   def truncatewords(input, max_words, ellipsis) do
-    words = to_string(input) |> String.split(" ", trim: true)
+    words = input |> to_string() |> String.split(" ", trim: true)
 
     if length(words) > max_words do
-      Enum.take(words, max_words)
+      words
+      |> Enum.take(max_words)
       |> Enum.intersperse(" ")
       |> Enum.join()
       |> Kernel.<>(ellipsis)

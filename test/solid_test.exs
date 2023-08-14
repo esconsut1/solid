@@ -1,5 +1,6 @@
 defmodule SolidTest do
   use ExUnit.Case, async: true
+
   doctest Solid
 
   describe "render!/3" do

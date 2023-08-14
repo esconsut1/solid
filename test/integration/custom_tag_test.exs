@@ -1,5 +1,6 @@
 defmodule Solid.Integration.CustomTagsTest do
   use ExUnit.Case, async: true
+
   import Solid.Helpers
 
   describe "custom tags" do

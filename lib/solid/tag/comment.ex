@@ -1,26 +1,31 @@
 defmodule Solid.Tag.Comment do
-  import NimbleParsec
-  alias Solid.Parser.BaseTag
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.BaseTag
 
   @impl true
   def spec(_parser) do
     end_comment_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("endcomment"))
       |> ignore(BaseTag.closing_tag())
 
     comment =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("comment"))
       |> ignore(BaseTag.closing_tag())
-      |> ignore(repeat(lookahead_not(ignore(end_comment_tag)) |> utf8_char([])))
+      |> ignore(repeat(ignore(end_comment_tag) |> lookahead_not() |> utf8_char([])))
       |> ignore(end_comment_tag)
 
     inline_comment =
-      ignore(BaseTag.comment_tag())
-      |> ignore(repeat(lookahead_not(ignore(BaseTag.closing_tag())) |> utf8_char([])))
+      BaseTag.comment_tag()
+      |> ignore()
+      |> ignore(repeat(ignore(BaseTag.closing_tag()) |> lookahead_not() |> utf8_char([])))
       |> ignore(BaseTag.closing_tag())
 
     choice([comment, inline_comment])

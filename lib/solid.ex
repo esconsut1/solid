@@ -2,11 +2,14 @@ defmodule Solid do
   @moduledoc """
   Main module to interact with Solid
   """
-  alias Solid.{Object, Tag, Context}
+  alias Solid.Context
+  alias Solid.Object
+  alias Solid.Tag
 
   @type errors :: %Solid.UndefinedVariableError{} | %Solid.UndefinedFilterError{}
 
   defmodule Template do
+    @moduledoc false
     @type rendered_data :: {:text, iodata()} | {:object, keyword()} | {:tag, list()}
     @type t :: %__MODULE__{parsed_template: list(rendered_data())}
 
@@ -15,6 +18,7 @@ defmodule Solid do
   end
 
   defmodule TemplateError do
+    @moduledoc false
     defexception [:message, :line, :reason]
 
     @impl true
@@ -28,6 +32,7 @@ defmodule Solid do
   end
 
   defmodule RenderError do
+    @moduledoc false
     defexception [:message, :errors, :result]
 
     @impl true
@@ -114,7 +119,7 @@ defmodule Solid do
       process_result(result, context)
   end
 
-  def render(text, context = %Context{}, options) do
+  def render(text, %Context{} = context, options) do
     {result, context} =
       for entry <- text, reduce: {[], context} do
         {acc, context} ->

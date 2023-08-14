@@ -61,8 +61,9 @@ defmodule Solid.LocalFileSystem do
       # => "/some/path/index.html"
 
   """
-  defstruct [:root, :pattern]
   @behaviour Solid.FileSystem
+
+  defstruct [:root, :pattern]
 
   def new(root, pattern \\ "_%s.liquid") do
     %__MODULE__{

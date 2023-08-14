@@ -1,7 +1,10 @@
 defmodule Solid.Integration.FiltersTest do
   use ExUnit.Case, async: true
+
   import Solid.Helpers
-  alias Solid.{UndefinedFilterError, UndefinedVariableError}
+
+  alias Solid.UndefinedFilterError
+  alias Solid.UndefinedVariableError
 
   test "multiple filters" do
     assert render("Text {{ key | default: 1 | upcase }} !", %{"key" => "abc"}) == "Text ABC !"

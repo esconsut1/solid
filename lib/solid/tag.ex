@@ -70,9 +70,11 @@ defmodule Solid.Tag do
   @spec basic(String.t()) :: NimbleParsec.t()
   def basic(name) do
     import NimbleParsec
+
     space = Solid.Parser.Literal.whitespace(min: 0)
 
-    ignore(Solid.Parser.BaseTag.opening_tag())
+    Solid.Parser.BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string(name))
     |> ignore(space)
     |> tag(optional(Solid.Parser.Argument.arguments()), :arguments)

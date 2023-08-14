@@ -1,14 +1,19 @@
 defmodule Solid.Tag.Capture do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal, Variable}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
+  alias Solid.Parser.Variable
 
   @impl true
   def spec(parser) do
     space = Literal.whitespace(min: 0)
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("capture"))
     |> ignore(space)
     |> concat(Variable.field())
@@ -20,21 +25,13 @@ defmodule Solid.Tag.Capture do
   end
 
   @impl true
-  def render(
-        [field: [field_name], result: result],
-        context,
-        options
-      ) do
+  def render([field: [field_name], result: result], context, options) do
     {captured, context} = Solid.render(result, context, options)
 
     {[], %{context | vars: Map.put(context.vars, field_name, IO.iodata_to_binary(captured))}}
   end
 
-  def render(
-        [field: fields_name, result: result],
-        context,
-        options
-      ) do
+  def render([field: fields_name, result: result], context, options) do
     {captured, context} = Solid.render(result, context, options)
 
     fields = for field <- fields_name, do: Access.key(field, %{})

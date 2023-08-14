@@ -1,6 +1,8 @@
 defmodule Solid.Integration.ObjectsTest do
   use ExUnit.Case, async: true
+
   import Solid.Helpers
+
   alias Solid.UndefinedVariableError
 
   test "no liquid template" do

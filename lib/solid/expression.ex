@@ -5,7 +5,8 @@ defmodule Solid.Expression do
   Also combine expressions with `and`, `or`
   """
 
-  alias Solid.{Argument, Context}
+  alias Solid.Argument
+  alias Solid.Context
 
   @type value :: number | iolist | boolean | nil
 
@@ -73,14 +74,11 @@ defmodule Solid.Expression do
   @spec eval({value, atom, value} | value) :: boolean
   def eval({v1, :contains, v2}) when is_list(v1), do: v2 in v1
 
-  def eval({v1, :contains, v2}) when is_bitstring(v1) and is_bitstring(v2),
-    do: String.contains?(v1, v2)
+  def eval({v1, :contains, v2}) when is_bitstring(v1) and is_bitstring(v2), do: String.contains?(v1, v2)
 
   def eval({_v1, :contains, _v2}), do: false
 
-  def eval({v1, op, v2})
-      when op in [:<=, :<, :>=, :>] and (not is_number(v1) or not is_number(v2)),
-      do: false
+  def eval({v1, op, v2}) when op in [:<=, :<, :>=, :>] and (not is_number(v1) or not is_number(v2)), do: false
 
   def eval({v1, op, v2}), do: apply(Kernel, op, [v1, v2])
 

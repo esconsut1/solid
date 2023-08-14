@@ -1,8 +1,11 @@
 defmodule Solid.ObjectTest do
   use ExUnit.Case, async: true
+
   import Solid.Object
-  doctest Solid.Object
+
   alias Solid.Context
+
+  doctest Solid.Object
 
   describe "render/2" do
     test "value no filter" do

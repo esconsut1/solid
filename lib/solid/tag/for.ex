@@ -1,15 +1,21 @@
 defmodule Solid.Tag.For do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal, Variable, Argument}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
+  alias Solid.Parser.Variable
 
   @impl true
   def spec(parser) do
     space = Literal.whitespace(min: 0)
 
     range =
-      ignore(string("("))
+      string("(")
+      |> ignore()
       |> unwrap_and_tag(choice([integer(min: 1), Variable.field()]), :first)
       |> ignore(string(".."))
       |> unwrap_and_tag(choice([integer(min: 1), Variable.field()]), :last)
@@ -19,7 +25,8 @@ defmodule Solid.Tag.For do
     delimit = choice([space |> concat(string(~s(,))) |> concat(space), space])
 
     limit =
-      ignore(string("limit"))
+      string("limit")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -27,7 +34,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     offset =
-      ignore(string("offset"))
+      string("offset")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -35,7 +43,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     sort_by =
-      ignore(string("sort_by"))
+      string("sort_by")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -43,31 +52,35 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     order =
-      ignore(string("order"))
+      string("order")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
       |> unwrap_and_tag(
         choice([
-          string("descending") |> replace(:desc),
-          string("ascending") |> replace(:asc),
-          string("desc") |> replace(:desc),
-          string("asc") |> replace(:asc)
+          "descending" |> string() |> replace(:desc),
+          "ascending" |> string() |> replace(:asc),
+          "desc" |> string() |> replace(:desc),
+          "asc" |> string() |> replace(:asc)
         ]),
         :order
       )
       |> ignore(delimit)
 
     reversed =
-      string("reversed")
+      "reversed"
+      |> string()
       |> replace({:reversed, 0})
       |> ignore(delimit)
 
     for_parameters =
-      repeat(choice([limit, offset, sort_by, order, reversed]))
+      choice([limit, offset, sort_by, order, reversed])
+      |> repeat()
       |> reduce({Enum, :into, [%{}]})
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("for"))
     |> ignore(space)
     |> concat(Argument.argument())
@@ -87,8 +100,7 @@ defmodule Solid.Tag.For do
 
   @impl true
   def render(
-        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] =
-          exp,
+        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] = exp,
         context,
         options
       ) do
@@ -164,9 +176,7 @@ defmodule Solid.Tag.For do
     }
   end
 
-  defp restore_initial_forloop_value(acc_context, %{
-         iteration_vars: %{"forloop" => initial_forloop}
-       }) do
+  defp restore_initial_forloop_value(acc_context, %{iteration_vars: %{"forloop" => initial_forloop}}) do
     iteration_vars = Map.put(acc_context.iteration_vars, "forloop", initial_forloop)
     %{acc_context | iteration_vars: iteration_vars}
   end

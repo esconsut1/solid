@@ -1,6 +1,8 @@
 defmodule Solid.ArgumentTest do
   use ExUnit.Case, async: true
+
   import Solid.Argument
+
   alias Solid.UndefinedVariableError
 
   describe "get/3" do
@@ -66,9 +68,7 @@ defmodule Solid.ArgumentTest do
       context = %Solid.Context{vars: %{"key" => nil}}
 
       assert {:ok, 456, ^context} =
-               get([field: ["key"]], context,
-                 filters: [filter: ["default", {:arguments, [value: 456]}]]
-               )
+               get([field: ["key"]], context, filters: [filter: ["default", {:arguments, [value: 456]}]])
     end
 
     test "basic filter strict_variables" do

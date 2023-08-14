@@ -4,7 +4,9 @@ defmodule Solid.Argument do
   a value (String, Integer, etc)
   """
 
-  alias Solid.{Context, Filter, UndefinedVariableError}
+  alias Solid.Context
+  alias Solid.Filter
+  alias Solid.UndefinedVariableError
 
   @spec get([field: [String.t() | integer]] | [value: term], Context.t(), Keyword.t()) ::
           {:ok, term, Context.t()}
@@ -38,12 +40,7 @@ defmodule Solid.Argument do
   defp apply_filters(input, nil, context, _opts), do: {input, context}
   defp apply_filters(input, [], context, _opts), do: {input, context}
 
-  defp apply_filters(
-         input,
-         [{:filter, [filter, {:arguments, [{:named_arguments, args}]}]} | filters],
-         context,
-         opts
-       ) do
+  defp apply_filters(input, [{:filter, [filter, {:arguments, [{:named_arguments, args}]}]} | filters], context, opts) do
     {:ok, values, context} = parse_named_arguments(args, context, opts)
 
     {result, context} =

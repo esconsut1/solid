@@ -1,15 +1,21 @@
 defmodule Solid.Tag.Tablerow do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal, Variable, Argument}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
+  alias Solid.Parser.Variable
 
   @impl true
   def spec(parser) do
     space = Literal.whitespace(min: 0)
 
     range =
-      ignore(string("("))
+      string("(")
+      |> ignore()
       |> unwrap_and_tag(choice([integer(min: 1), Variable.field()]), :first)
       |> ignore(string(".."))
       |> unwrap_and_tag(choice([integer(min: 1), Variable.field()]), :last)
@@ -19,7 +25,8 @@ defmodule Solid.Tag.Tablerow do
     delimit = choice([space |> concat(string(~s(,))) |> concat(space), space])
 
     limit =
-      ignore(string("limit"))
+      string("limit")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -27,7 +34,8 @@ defmodule Solid.Tag.Tablerow do
       |> ignore(delimit)
 
     offset =
-      ignore(string("offset"))
+      string("offset")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -35,7 +43,8 @@ defmodule Solid.Tag.Tablerow do
       |> ignore(delimit)
 
     cols =
-      ignore(string("cols"))
+      string("cols")
+      |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
       |> ignore(space)
@@ -43,10 +52,12 @@ defmodule Solid.Tag.Tablerow do
       |> ignore(delimit)
 
     for_parameters =
-      repeat(choice([limit, offset, cols]))
+      choice([limit, offset, cols])
+      |> repeat()
       |> reduce({Enum, :into, [%{}]})
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("tablerow"))
     |> ignore(space)
     |> concat(Argument.argument())
@@ -65,8 +76,7 @@ defmodule Solid.Tag.Tablerow do
 
   @impl true
   def render(
-        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] =
-          exp,
+        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] = exp,
         context,
         options
       ) do
@@ -114,7 +124,7 @@ defmodule Solid.Tag.Tablerow do
                 end
             end
 
-          cols_result = Enum.reverse(cols_result) |> Enum.join()
+          cols_result = cols_result |> Enum.reverse() |> Enum.join()
 
           {[
              "<tr class=\"row#{row_index + 1}\">#{cols_result}</tr>"
@@ -122,7 +132,7 @@ defmodule Solid.Tag.Tablerow do
            ], cols_context}
       end
 
-    result = Enum.reverse(result) |> Enum.join()
+    result = result |> Enum.reverse() |> Enum.join()
     context = %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
     {[text: result], context}
   catch
@@ -136,8 +146,7 @@ defmodule Solid.Tag.Tablerow do
     %{acc_context | iteration_vars: iteration_vars}
   end
 
-  defp maybe_put_tablerow_map(acc_context, key, row_index, col_index, row_length, col_length)
-       when key != "tablerow" do
+  defp maybe_put_tablerow_map(acc_context, key, row_index, col_index, row_length, col_length) when key != "tablerow" do
     map = build_tablerow_map(row_index, col_index, row_length, col_length)
     iteration_vars = Map.put(acc_context.iteration_vars, "tablerow", map)
     %{acc_context | iteration_vars: iteration_vars}
@@ -160,9 +169,7 @@ defmodule Solid.Tag.Tablerow do
     }
   end
 
-  defp restore_initial_forloop_value(acc_context, %{
-         iteration_vars: %{"tablerow" => initial_forloop}
-       }) do
+  defp restore_initial_forloop_value(acc_context, %{iteration_vars: %{"tablerow" => initial_forloop}}) do
     iteration_vars = Map.put(acc_context.iteration_vars, "tablerow", initial_forloop)
     %{acc_context | iteration_vars: iteration_vars}
   end

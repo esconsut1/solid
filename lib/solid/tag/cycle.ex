@@ -1,15 +1,19 @@
 defmodule Solid.Tag.Cycle do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
 
   @impl true
   def spec(_parser) do
     space = Literal.whitespace(min: 0)
     quoted = choice([Literal.double_quoted_string(), Literal.single_quoted_string()])
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("cycle"))
     |> ignore(space)
     |> optional(
@@ -21,7 +25,8 @@ defmodule Solid.Tag.Cycle do
     |> concat(
       quoted
       |> repeat(
-        ignore(space)
+        space
+        |> ignore()
         |> ignore(string(","))
         |> ignore(space)
         |> concat(quoted)

@@ -1,5 +1,6 @@
 defmodule Solid.Integration.CustomFiltersTest do
   use ExUnit.Case, async: false
+
   import Solid.Helpers
 
   setup do
@@ -49,6 +50,7 @@ defmodule Solid.Integration.CustomFiltersTest do
     end
 
     defmodule MyCustomFilters do
+      @moduledoc false
       def add_one(x), do: x + 1
     end
 

@@ -1,23 +1,30 @@
 defmodule Solid.Tag.Counter do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal, Variable}
-  alias Solid.Argument
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
+  alias Solid.Parser.Variable
 
   @impl true
   def spec(_parser) do
     space = Literal.whitespace(min: 0)
 
     increment =
-      string("increment")
+      "increment"
+      |> string()
       |> replace({1, 0})
 
     decrement =
-      string("decrement")
+      "decrement"
+      |> string()
       |> replace({-1, -1})
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> concat(choice([increment, decrement]))
     |> ignore(space)
     |> concat(Variable.field())

@@ -3,16 +3,19 @@ defmodule Solid.Tag.If do
   If and Unless tags
   """
 
-  import NimbleParsec
-  alias Solid.Parser.{Argument, BaseTag, Literal}
-  alias Solid.Expression
-
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Expression
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
 
   space = Literal.whitespace(min: 0)
 
   operator =
-    choice([
+    [
       string("=="),
       string("!="),
       string(">="),
@@ -20,14 +23,17 @@ defmodule Solid.Tag.If do
       string(">"),
       string("<"),
       string("contains")
-    ])
+    ]
+    |> choice()
     |> map({:erlang, :binary_to_atom, [:utf8]})
 
   argument_filter =
-    tag(Argument.argument(), :argument)
+    Argument.argument()
+    |> tag(:argument)
     |> tag(
       repeat(
-        lookahead_not(choice([operator, string("and"), string("&&"), string("or"), string("||")]))
+        choice([operator, string("and"), string("&&"), string("or"), string("||")])
+        |> lookahead_not()
         |> concat(Argument.filter())
       ),
       :filters
@@ -36,7 +42,8 @@ defmodule Solid.Tag.If do
   defcombinator(:__argument_filter__, argument_filter)
 
   boolean_operation =
-    tag(parsec(:__argument_filter__), :arg1)
+    parsec(:__argument_filter__)
+    |> tag(:arg1)
     |> ignore(space)
     |> tag(operator, :op)
     |> ignore(space)
@@ -44,21 +51,23 @@ defmodule Solid.Tag.If do
     |> wrap()
 
   expression =
-    ignore(space)
+    space
+    |> ignore()
     |> choice([boolean_operation, wrap(parsec(:__argument_filter__))])
     |> ignore(space)
 
   bool_and =
-    choice([string("and"), string("&&")])
+    [string("and"), string("&&")]
+    |> choice()
     |> replace(:bool_and)
 
   bool_or =
-    choice([string("or"), string("||")])
+    [string("or"), string("||")]
+    |> choice()
     |> replace(:bool_or)
 
   boolean_expression =
-    expression
-    |> repeat(choice([bool_and, bool_or]) |> concat(expression))
+    repeat(expression, [bool_and, bool_or] |> choice() |> concat(expression))
 
   defcombinator(:__boolean_expression__, boolean_expression)
 
@@ -67,14 +76,16 @@ defmodule Solid.Tag.If do
     space = Literal.whitespace(min: 0)
 
     if_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("if"))
       |> tag(parsec({__MODULE__, :__boolean_expression__}), :expression)
       |> ignore(BaseTag.closing_tag())
       |> tag(parsec({parser, :liquid_entry}), :result)
 
     elsif_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("elsif"))
       |> tag(parsec({__MODULE__, :__boolean_expression__}), :expression)
       |> ignore(BaseTag.closing_tag())
@@ -82,7 +93,8 @@ defmodule Solid.Tag.If do
       |> tag(:elsif_exp)
 
     unless_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("unless"))
       |> tag(parsec({__MODULE__, :__boolean_expression__}), :expression)
       |> ignore(space)
@@ -90,7 +102,8 @@ defmodule Solid.Tag.If do
       |> tag(parsec({parser, :liquid_entry}), :result)
 
     cond_if_tag =
-      tag(if_tag, :if_exp)
+      if_tag
+      |> tag(:if_exp)
       |> tag(times(elsif_tag, min: 0), :elsif_exps)
       |> optional(tag(BaseTag.else_tag(parser), :else_exp))
       |> ignore(BaseTag.opening_tag())
@@ -98,7 +111,8 @@ defmodule Solid.Tag.If do
       |> ignore(BaseTag.closing_tag())
 
     cond_unless_tag =
-      tag(unless_tag, :unless_exp)
+      unless_tag
+      |> tag(:unless_exp)
       |> tag(times(elsif_tag, min: 0), :elsif_exps)
       |> optional(tag(BaseTag.else_tag(parser), :else_exp))
       |> ignore(BaseTag.opening_tag())

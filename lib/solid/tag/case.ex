@@ -1,8 +1,12 @@
 defmodule Solid.Tag.Case do
-  import NimbleParsec
-  alias Solid.Parser.{Argument, BaseTag, Literal}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
 
   def when_join(whens) do
     Enum.flat_map(whens, fn {:when, values} ->
@@ -17,23 +21,22 @@ defmodule Solid.Tag.Case do
     space = Literal.whitespace(min: 0)
 
     case_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("case"))
       |> ignore(space)
       |> concat(Argument.argument())
       |> ignore(BaseTag.closing_tag())
 
     when_condition =
-      Argument.argument()
-      |> repeat(
-        ignore(space)
-        |> ignore(choice([string(","), string("or")]))
-        |> ignore(space)
-        |> concat(Argument.argument())
+      repeat(
+        Argument.argument(),
+        space |> ignore() |> ignore(choice([string(","), string("or")])) |> ignore(space) |> concat(Argument.argument())
       )
 
     when_tag =
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("when"))
       |> ignore(space)
       |> concat(when_condition)
@@ -41,7 +44,8 @@ defmodule Solid.Tag.Case do
       |> tag(parsec({parser, :liquid_entry}), :result)
       |> tag(:when)
 
-    tag(case_tag, :case_exp)
+    case_tag
+    |> tag(:case_exp)
     # FIXME
     |> ignore(parsec({parser, :liquid_entry}))
     |> unwrap_and_tag(reduce(times(when_tag, min: 1), {__MODULE__, :when_join, []}), :whens)

@@ -1,4 +1,5 @@
 defmodule WhitespaceTrimHelper do
+  @moduledoc false
   defmacro test_permutations(name, json \\ "{}", do: input) do
     sanitized_name = name |> String.split() |> Enum.map(&String.capitalize/1) |> Enum.join()
     module_name = Module.concat([Solid.Integration.WhitespaceTrimCase, :"#{sanitized_name}Test"])
@@ -6,8 +7,10 @@ defmodule WhitespaceTrimHelper do
     quote do
       defmodule unquote(module_name) do
         use ExUnit.Case, async: true
+
         import Solid.Helpers
         import WhitespaceTrimHelper
+
         @moduletag :integration
 
         for {variant, counter} <- Enum.with_index(generate_permutations(unquote(input))) do
@@ -24,16 +27,14 @@ defmodule WhitespaceTrimHelper do
 
   def generate_permutations(template) do
     input =
-      build_regex()
-      |> Regex.split(template)
+      Regex.split(build_regex(), template)
 
     versions =
       input
       |> find_tag_indexes()
       |> build_versions(input)
 
-    (versions ++ [build_complete_version(input), input])
-    |> Enum.map(&List.to_string/1)
+    Enum.map(versions ++ [build_complete_version(input), input], &List.to_string/1)
   end
 
   defp build_regex do

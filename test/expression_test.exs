@@ -1,8 +1,11 @@
 defmodule Solid.ExpressionTest do
   use ExUnit.Case, async: true
-  doctest Solid.Expression
+
   import Solid.Expression
+
   alias Solid.Context
+
+  doctest Solid.Expression
 
   describe "eval/2" do
     test "expression with 1 value boolean" do

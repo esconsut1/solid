@@ -1,8 +1,10 @@
 defmodule Solid.Tag.Raw do
-  import NimbleParsec
-  alias Solid.Parser.BaseTag
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.BaseTag
 
   @impl true
   def spec(_parser) do
@@ -11,10 +13,11 @@ defmodule Solid.Tag.Raw do
       |> ignore(string("endraw"))
       |> ignore(BaseTag.closing_tag())
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("raw"))
     |> ignore(BaseTag.closing_tag())
-    |> repeat(lookahead_not(ignore(end_raw_tag)) |> utf8_char([]))
+    |> repeat(ignore(end_raw_tag) |> lookahead_not() |> utf8_char([]))
     |> ignore(end_raw_tag)
   end
 

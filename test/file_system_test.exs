@@ -1,9 +1,10 @@
 defmodule Solid.FileSystemTest do
   use ExUnit.Case, async: true
-  doctest Solid.FileSystem
 
   alias Solid.BlankFileSystem
   alias Solid.LocalFileSystem
+
+  doctest Solid.FileSystem
 
   test "default file system" do
     assert_raise File.Error, fn ->

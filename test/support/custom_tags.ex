@@ -1,34 +1,44 @@
 defmodule CustomTags do
+  @moduledoc false
   defmodule CurrentDate do
-    import NimbleParsec
-    alias Solid.Parser.{Literal, BaseTag}
-
+    @moduledoc false
     @behaviour Solid.Tag
+
+    import NimbleParsec
+
+    alias Solid.Parser.BaseTag
+    alias Solid.Parser.Literal
 
     @impl true
     def spec(_parser) do
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("get_current_date"))
       |> ignore(BaseTag.closing_tag())
     end
 
     @impl true
     def render(_arguments, _context, _options) do
-      DateTime.utc_now().year |> to_string
+      to_string(DateTime.utc_now().year)
     end
   end
 
   defmodule GetYearOfDate do
-    import NimbleParsec
-    alias Solid.Parser.{Literal, Argument, BaseTag}
-
+    @moduledoc false
     @behaviour Solid.Tag
+
+    import NimbleParsec
+
+    alias Solid.Parser.Argument
+    alias Solid.Parser.BaseTag
+    alias Solid.Parser.Literal
 
     @impl true
     def spec(_parser) do
       space = Literal.whitespace(min: 0)
 
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("get_year"))
       |> ignore(space)
       |> tag(Argument.arguments(), :arguments)
@@ -49,16 +59,20 @@ defmodule CustomTags do
   end
 
   defmodule CustomBrackedWrappedTag do
-    import NimbleParsec
-    alias Solid.Parser.{Literal, BaseTag}
-
+    @moduledoc false
     @behaviour Solid.Tag
+
+    import NimbleParsec
+
+    alias Solid.Parser.BaseTag
+    alias Solid.Parser.Literal
 
     @impl true
     def spec(parser) do
       space = Literal.whitespace(min: 0)
 
-      ignore(BaseTag.opening_tag())
+      BaseTag.opening_tag()
+      |> ignore()
       |> ignore(string("myblock"))
       |> ignore(BaseTag.closing_tag())
       |> tag(parsec({parser, :liquid_entry}), :result)
@@ -76,6 +90,7 @@ defmodule CustomTags do
   end
 
   defmodule FoobarTag do
+    @moduledoc false
     @behaviour Solid.Tag
 
     @impl true
@@ -88,6 +103,7 @@ defmodule CustomTags do
   end
 
   defmodule FoobarValTag do
+    @moduledoc false
     @behaviour Solid.Tag
 
     @impl true

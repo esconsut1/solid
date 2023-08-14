@@ -1,12 +1,15 @@
 defmodule Solid.Tag.Continue do
-  import NimbleParsec
-  alias Solid.Parser.BaseTag
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.BaseTag
 
   @impl true
   def spec(_parser) do
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("continue"))
     |> ignore(BaseTag.closing_tag())
   end

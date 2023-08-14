@@ -1,4 +1,5 @@
 defmodule Solid.Parser.Base do
+  @moduledoc false
   defmacro __using__(opts) do
     custom_tag_modules = Keyword.get(opts, :custom_tags, [])
     excluded_tags = Keyword.get(opts, :excluded_tags, [])
@@ -6,7 +7,11 @@ defmodule Solid.Parser.Base do
     quote location: :keep,
           bind_quoted: [custom_tag_modules: custom_tag_modules, excluded_tags: excluded_tags] do
       import NimbleParsec
-      alias Solid.Parser.{Literal, Variable, Argument, BaseTag}
+
+      alias Solid.Parser.Argument
+      alias Solid.Parser.BaseTag
+      alias Solid.Parser.Literal
+      alias Solid.Parser.Variable
 
       space = Literal.whitespace(min: 0)
 
@@ -25,7 +30,8 @@ defmodule Solid.Parser.Base do
         |> ignore()
 
       object =
-        ignore(opening_object)
+        opening_object
+        |> ignore()
         # At this stage whitespace control has been handled as part of the liquid_entry
         |> ignore(optional(string("-")))
         |> ignore(space)
@@ -62,32 +68,34 @@ defmodule Solid.Parser.Base do
         end
 
       all_tags = base_tags ++ (custom_tags || [])
-      tags = choice(all_tags) |> tag(:tag)
+      tags = all_tags |> choice() |> tag(:tag)
 
       text =
-        lookahead_not(
-          choice([
-            Literal.whitespace(min: 1)
-            |> concat(opening_wc_object),
-            Literal.whitespace(min: 1)
-            |> concat(opening_wc_tag),
-            opening_object,
-            opening_tag
-          ])
-        )
+        choice([
+          [min: 1]
+          |> Literal.whitespace()
+          |> concat(opening_wc_object),
+          [min: 1]
+          |> Literal.whitespace()
+          |> concat(opening_wc_tag),
+          opening_object,
+          opening_tag
+        ])
+        |> lookahead_not()
         |> utf8_string([], 1)
         |> times(min: 1)
         |> reduce({Enum, :join, []})
         |> tag(:text)
 
       leading_whitespace =
-        Literal.whitespace(min: 1)
+        [min: 1]
+        |> Literal.whitespace()
         |> lookahead(choice([opening_wc_object, opening_wc_tag]))
         |> ignore()
 
       defcombinator(:liquid_entry, repeat(choice([object, tags, text, leading_whitespace])))
 
-      defparsec(:parse, parsec(:liquid_entry) |> eos())
+      defparsec(:parse, :liquid_entry |> parsec() |> eos())
     end
   end
 end

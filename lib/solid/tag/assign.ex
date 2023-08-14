@@ -1,14 +1,20 @@
 defmodule Solid.Tag.Assign do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Literal, Variable, Argument}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
+  alias Solid.Parser.Variable
 
   @impl true
   def spec(_parser) do
     space = Literal.whitespace(min: 0)
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("assign"))
     |> ignore(space)
     |> concat(Variable.field())
@@ -21,11 +27,7 @@ defmodule Solid.Tag.Assign do
   end
 
   @impl true
-  def render(
-        [field: [field_name], argument: argument, filters: filters],
-        context,
-        options
-      ) do
+  def render([field: [field_name], argument: argument, filters: filters], context, options) do
     {:ok, new_value, context} =
       Solid.Argument.get(argument, context, [{:filters, filters} | options])
 

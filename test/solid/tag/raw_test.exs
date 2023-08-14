@@ -1,18 +1,21 @@
 defmodule Solid.Tag.RawTest do
   use ExUnit.Case, async: true
-  alias Solid.Tag.Raw
+
   alias Solid.Context
+  alias Solid.Tag.Raw
 
   defmodule Parser do
+    @moduledoc false
     import NimbleParsec
-    defparsec(:parse, Raw.spec(__MODULE__) |> eos())
+
+    defparsec(:parse, __MODULE__ |> Raw.spec() |> eos())
   end
 
   test "integration" do
     {:ok, parsed, _, _, _, _} =
-      "{% raw %} {{liquid}} {% increment counter %} {% endraw %}" |> Parser.parse()
+      Parser.parse("{% raw %} {{liquid}} {% increment counter %} {% endraw %}")
 
-    assert {[text: ' {{liquid}} {% increment counter %} '], %Context{}} ==
+    assert {[text: ~c" {{liquid}} {% increment counter %} "], %Context{}} ==
              Raw.render(parsed, %Context{}, [])
   end
 end

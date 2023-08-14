@@ -1,6 +1,8 @@
 defmodule Solid.Integration.TagsTest do
   use ExUnit.Case, async: true
+
   import Solid.Helpers
+
   alias Solid.UndefinedVariableError
 
   describe "if" do
@@ -13,9 +15,7 @@ defmodule Solid.Integration.TagsTest do
     end
 
     test "if expression with strict_variables" do
-      assert render("{% if other_key == nil %}True{% endif %} is True", %{"key" => 123},
-               strict_variables: true
-             ) ==
+      assert render("{% if other_key == nil %}True{% endif %} is True", %{"key" => 123}, strict_variables: true) ==
                {:error, [%UndefinedVariableError{variable: ["other_key"]}], "True is True"}
     end
 
@@ -65,9 +65,8 @@ defmodule Solid.Integration.TagsTest do
     end
 
     test "elsif strict_variables" do
-      assert render("{% if 1 != 1 %}if{% elsif other_key != 1 %}elsif{% endif %}", %{},
-               strict_variables: true
-             ) == {:error, [%UndefinedVariableError{variable: ["other_key"]}], "elsif"}
+      assert render("{% if 1 != 1 %}if{% elsif other_key != 1 %}elsif{% endif %}", %{}, strict_variables: true) ==
+               {:error, [%UndefinedVariableError{variable: ["other_key"]}], "elsif"}
     end
   end
 
@@ -82,9 +81,7 @@ defmodule Solid.Integration.TagsTest do
     end
 
     test "unless expression with strict_variables" do
-      assert render("{% unless other_key != nil %}True{% endunless %} is True", %{"key" => 123},
-               strict_variables: true
-             ) ==
+      assert render("{% unless other_key != nil %}True{% endunless %} is True", %{"key" => 123}, strict_variables: true) ==
                {:error, [%UndefinedVariableError{variable: ["other_key"]}], "True is True"}
     end
 
@@ -581,6 +578,7 @@ defmodule Solid.Integration.TagsTest do
   end
 
   defmodule FakeFileSystem do
+    @moduledoc false
     def read_template_file("file1", _opts) do
       "{{ name }}{{ variable1 }}{{ variable2 }}"
     end

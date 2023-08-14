@@ -2,6 +2,7 @@ ExUnit.start()
 {:module, _} = Code.ensure_compiled(Solid.CustomFilters)
 
 defmodule Solid.Helpers do
+  @moduledoc false
   def render(text, hash \\ %{}, options \\ []) do
     case Solid.parse(text, options) do
       {:ok, template} ->
@@ -41,14 +42,15 @@ defmodule Solid.Helpers do
         end
 
       solid_output =
-        render(unquote(liquid_input), Jason.decode!(unquote(json_input)), opts)
+        unquote(liquid_input)
+        |> render(Jason.decode!(unquote(json_input)), opts)
         |> IO.iodata_to_binary()
 
       {liquid_output, 0} =
         liquid_render(unquote(liquid_input), unquote(json_input), unquote(template_dir))
 
-      if String.trim(liquid_output) |> String.replace("\n", "") ==
-           String.trim(solid_output) |> String.replace("\n", "") do
+      if liquid_output |> String.trim() |> String.replace("\n", "") ==
+           solid_output |> String.trim() |> String.replace("\n", "") do
         true
       else
         message = """

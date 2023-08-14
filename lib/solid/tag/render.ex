@@ -1,20 +1,26 @@
 defmodule Solid.Tag.Render do
-  import NimbleParsec
-  alias Solid.Parser.{BaseTag, Argument, Literal}
-
+  @moduledoc false
   @behaviour Solid.Tag
+
+  import NimbleParsec
+
+  alias Solid.Parser.Argument
+  alias Solid.Parser.BaseTag
+  alias Solid.Parser.Literal
 
   @impl true
   def spec(_parser) do
     space = Literal.whitespace(min: 0)
 
-    ignore(BaseTag.opening_tag())
+    BaseTag.opening_tag()
+    |> ignore()
     |> ignore(string("render"))
     |> ignore(space)
     |> tag(Argument.argument(), :template)
     |> tag(
       optional(
-        ignore(string(","))
+        string(",")
+        |> ignore()
         |> ignore(space)
         |> concat(Argument.named_arguments())
       ),
@@ -22,7 +28,8 @@ defmodule Solid.Tag.Render do
     )
     |> tag(
       optional(
-        ignore(space)
+        space
+        |> ignore()
         |> concat(Argument.with_parameter())
       ),
       :with_parameter
@@ -32,15 +39,12 @@ defmodule Solid.Tag.Render do
   end
 
   @impl true
-  def render(
-        [template: template_binding, arguments: argument_binding, with_parameter: with_binding],
-        context,
-        options
-      ) do
+  def render([template: template_binding, arguments: argument_binding, with_parameter: with_binding], context, options) do
     {:ok, template, context} = Solid.Argument.get(template_binding, context)
 
     {:ok, binding_vars, context} =
-      Keyword.get(argument_binding || [], :named_arguments, [])
+      (argument_binding || [])
+      |> Keyword.get(:named_arguments, [])
       |> Keyword.merge(Enum.reverse(Keyword.get(with_binding || [], :with_parameter, [])))
       |> Solid.Argument.parse_named_arguments(context)
 

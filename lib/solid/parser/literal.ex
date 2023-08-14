@@ -1,4 +1,5 @@
 defmodule Solid.Parser.Literal do
+  @moduledoc false
   import NimbleParsec
 
   @dialyzer :no_opaque
@@ -11,16 +12,19 @@ defmodule Solid.Parser.Literal do
   end
 
   def int do
-    optional(minus())
+    minus()
+    |> optional()
     |> concat(integer(min: 1))
     |> reduce({Enum, :join, [""]})
     |> map({String, :to_integer, []})
   end
 
   def single_quoted_string do
-    ignore(string(~s(')))
+    string(~s('))
+    |> ignore()
     |> repeat(
-      lookahead_not(ascii_char([?']))
+      ascii_char([?'])
+      |> lookahead_not()
       |> choice([string(~s(\')), utf8_char([])])
     )
     |> ignore(string(~s(')))
@@ -28,9 +32,11 @@ defmodule Solid.Parser.Literal do
   end
 
   def double_quoted_string do
-    ignore(string(~s(")))
+    string(~s("))
+    |> ignore()
     |> repeat(
-      lookahead_not(ascii_char([?"]))
+      ascii_char([?"])
+      |> lookahead_not()
       |> choice([string(~s(\")), utf8_char([])])
     )
     |> ignore(string(~s(")))
@@ -39,23 +45,28 @@ defmodule Solid.Parser.Literal do
 
   def value do
     true_value =
-      string("true")
+      "true"
+      |> string()
       |> replace(true)
 
     false_value =
-      string("false")
+      "false"
+      |> string()
       |> replace(false)
 
     null =
-      string("nil")
+      "nil"
+      |> string()
       |> replace(nil)
 
     frac =
-      string(".")
+      "."
+      |> string()
       |> concat(integer(min: 1))
 
     exp =
-      choice([string("e"), string("E")])
+      [string("e"), string("E")]
+      |> choice()
       |> optional(choice([plus(), minus()]))
       |> integer(min: 1)
 
@@ -66,7 +77,7 @@ defmodule Solid.Parser.Literal do
       |> reduce({Enum, :join, [""]})
       |> map({String, :to_float, []})
 
-    choice([
+    [
       float,
       int(),
       true_value,
@@ -74,7 +85,8 @@ defmodule Solid.Parser.Literal do
       null,
       single_quoted_string(),
       double_quoted_string()
-    ])
+    ]
+    |> choice()
     |> unwrap_and_tag(:value)
   end
 end

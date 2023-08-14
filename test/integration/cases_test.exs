@@ -5,7 +5,9 @@ for test_case <- File.ls!(cases_dir) do
 
   defmodule module_name do
     use ExUnit.Case, async: true
+
     import Solid.Helpers
+
     @moduletag :integration
 
     @liquid_input_file "#{cases_dir}/#{test_case}/input.liquid"
