@@ -12,6 +12,8 @@ defmodule Solid.LazyCache do
         read_concurrency: true,
         write_concurrency: true
       ])
+
+      :ets.insert(@cache, {:__max_size, 1000, nil})
     end
 
     :ok
@@ -35,6 +37,34 @@ defmodule Solid.LazyCache do
 
   def put(key, value, ttl) do
     expires = :erlang.system_time(:second) + ttl
-    :ets.insert(@cache, {key, value, expires})
+    entry = {key, value, expires}
+
+    if !exists?(key) && :ets.info(@cache, :size) > get_max_size() do
+      purge()
+    end
+
+    :ets.insert(@cache, entry)
+  end
+
+  def exists?(key) do
+    :ets.member(@cache, key)
+  end
+
+  defp get_max_size do
+    [{_key, max_size, _expiry}] = :ets.lookup(@cache, :__max_size)
+    max_size
+  end
+
+  def purge do
+    purge(:ets.first(@cache), 1)
+  end
+
+  defp purge(_, 100), do: :ok
+
+  defp purge(:"$end_of_table", _), do: :ok
+
+  defp purge(key, count) do
+    :ets.delete(@cache, key)
+    purge(:ets.next(@cache, key), count + 1)
   end
 end
