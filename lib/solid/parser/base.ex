@@ -71,7 +71,7 @@ defmodule Solid.Parser.Base do
       tags = all_tags |> choice() |> tag(:tag)
 
       text =
-        choice([
+        [
           [min: 1]
           |> Literal.whitespace()
           |> concat(opening_wc_object),
@@ -80,7 +80,8 @@ defmodule Solid.Parser.Base do
           |> concat(opening_wc_tag),
           opening_object,
           opening_tag
-        ])
+        ]
+        |> choice()
         |> lookahead_not()
         |> utf8_string([], 1)
         |> times(min: 1)

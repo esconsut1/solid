@@ -20,10 +20,12 @@ defmodule Solid.Parser.Literal do
   end
 
   def single_quoted_string do
-    string(~s('))
+    ~s(')
+    |> string()
     |> ignore()
     |> repeat(
-      ascii_char([?'])
+      [?']
+      |> ascii_char()
       |> lookahead_not()
       |> choice([string(~s(\')), utf8_char([])])
     )
@@ -32,10 +34,12 @@ defmodule Solid.Parser.Literal do
   end
 
   def double_quoted_string do
-    string(~s("))
+    ~s(")
+    |> string()
     |> ignore()
     |> repeat(
-      ascii_char([?"])
+      [?"]
+      |> ascii_char()
       |> lookahead_not()
       |> choice([string(~s(\")), utf8_char([])])
     )

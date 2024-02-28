@@ -44,7 +44,7 @@ defmodule Solid.Context do
   def get_in(context, key, scopes) do
     scopes
     |> Enum.reverse()
-    |> Enum.map(&get_from_scope(context, &1, key))
+    |> Enum.map(&(context |> Map.get(&1) |> do_get_in(key)))
     |> Enum.reduce({:error, {:not_found, key}}, fn
       {:ok, nil}, {:ok, _} = acc -> acc
       {:ok, _} = value, _acc -> value
@@ -80,10 +80,6 @@ defmodule Solid.Context do
     cycle
     |> Enum.with_index()
     |> Map.new(fn {value, index} -> {index, value} end)
-  end
-
-  defp get_from_scope(context, scope, key) do
-    context |> Map.get(scope) |> do_get_in(key)
   end
 
   defp do_get_in(nil, []), do: {:ok, nil}

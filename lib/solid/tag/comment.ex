@@ -19,13 +19,13 @@ defmodule Solid.Tag.Comment do
       |> ignore()
       |> ignore(string("comment"))
       |> ignore(BaseTag.closing_tag())
-      |> ignore(repeat(ignore(end_comment_tag) |> lookahead_not() |> utf8_char([])))
+      |> ignore(repeat(end_comment_tag |> ignore() |> lookahead_not() |> utf8_char([])))
       |> ignore(end_comment_tag)
 
     inline_comment =
       BaseTag.comment_tag()
       |> ignore()
-      |> ignore(repeat(ignore(BaseTag.closing_tag()) |> lookahead_not() |> utf8_char([])))
+      |> ignore(repeat(BaseTag.closing_tag() |> ignore() |> lookahead_not() |> utf8_char([])))
       |> ignore(BaseTag.closing_tag())
 
     choice([comment, inline_comment])

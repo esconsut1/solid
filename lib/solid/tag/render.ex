@@ -19,7 +19,8 @@ defmodule Solid.Tag.Render do
     |> tag(Argument.argument(), :template)
     |> tag(
       optional(
-        string(",")
+        ","
+        |> string()
         |> ignore()
         |> ignore(space)
         |> concat(Argument.named_arguments())
@@ -41,6 +42,7 @@ defmodule Solid.Tag.Render do
   @impl true
   def render([template: template_binding, arguments: argument_binding, with_parameter: with_binding], context, options) do
     {:ok, template, context} = Solid.Argument.get(template_binding, context)
+    cache_module = Keyword.get(options, :cache_module, Solid.Caching.NoCache)
 
     {:ok, binding_vars, context} =
       (argument_binding || [])
@@ -56,14 +58,36 @@ defmodule Solid.Tag.Render do
     {file_system, instance} = options[:file_system] || {Solid.BlankFileSystem, nil}
 
     template_str = file_system.read_template_file(template, instance)
-    template = Solid.parse!(template_str, options)
-    # FIXME need to sort out context error stuff :thinking: + tests
-    case Solid.render(template, binding_vars, options) do
-      {:ok, rendered_text} ->
-        {[text: rendered_text], context}
+    cache_key = :md5 |> :crypto.hash(template_str) |> Base.encode16(case: :lower)
 
-      {:error, errors, rendered_text} ->
-        {[text: rendered_text], Solid.Context.put_errors(context, Enum.reverse(errors))}
+    result =
+      case apply(cache_module, :get, [cache_key]) do
+        {:ok, cached_template} ->
+          {:ok, cached_template}
+
+        {:error, :not_found} ->
+          parse_and_cache_partial(template_str, options, cache_key, cache_module)
+      end
+
+    case result do
+      {:ok, template} ->
+        case Solid.render(template, binding_vars, options) do
+          {:ok, rendered_text} ->
+            {[text: rendered_text], context}
+
+          {:error, errors, rendered_text} ->
+            {[text: rendered_text], Solid.Context.put_errors(context, Enum.reverse(errors))}
+        end
+
+      {:error, exception} ->
+        {[], Solid.Context.put_errors(context, [exception])}
+    end
+  end
+
+  defp parse_and_cache_partial(template_str, options, cache_key, cache_module) do
+    with {:ok, template} <- Solid.parse(template_str, options) do
+      apply(cache_module, :put, [cache_key, template])
+      {:ok, template}
     end
   end
 end

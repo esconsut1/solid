@@ -32,7 +32,8 @@ defmodule Solid.Tag.If do
     |> tag(:argument)
     |> tag(
       repeat(
-        choice([operator, string("and"), string("&&"), string("or"), string("||")])
+        [operator, string("and"), string("&&"), string("or"), string("||")]
+        |> choice()
         |> lookahead_not()
         |> concat(Argument.filter())
       ),
@@ -42,7 +43,8 @@ defmodule Solid.Tag.If do
   defcombinator(:__argument_filter__, argument_filter)
 
   boolean_operation =
-    parsec(:__argument_filter__)
+    :__argument_filter__
+    |> parsec()
     |> tag(:arg1)
     |> ignore(space)
     |> tag(operator, :op)

@@ -17,7 +17,7 @@ defmodule Solid.Tag.Raw do
     |> ignore()
     |> ignore(string("raw"))
     |> ignore(BaseTag.closing_tag())
-    |> repeat(ignore(end_raw_tag) |> lookahead_not() |> utf8_char([]))
+    |> repeat(end_raw_tag |> ignore() |> lookahead_not() |> utf8_char([]))
     |> ignore(end_raw_tag)
   end
 

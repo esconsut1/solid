@@ -22,34 +22,23 @@ defmodule Solid.Filter do
 
     args_with_opts = args ++ [opts]
 
-    cond do
-      filter_exists?({custom_module, filter, length(args_with_opts)}) ->
-        {:ok, apply_filter({custom_module, filter, args_with_opts})}
-
-      filter_exists?({custom_module, filter, length(args)}) ->
-        {:ok, apply_filter({custom_module, filter, args})}
-
-      filter_exists?({__MODULE__, filter, length(args)}) ->
-        {:ok, apply_filter({__MODULE__, filter, args})}
-
-      true ->
-        if strict_variables do
-          {:error, %Solid.UndefinedFilterError{filter: filter}, List.first(args)}
-        else
-          {:ok, List.first(args)}
-        end
+    with :error <- apply_filter(custom_module, filter, args_with_opts),
+         :error <- apply_filter(custom_module, filter, args),
+         :error <- apply_filter(__MODULE__, filter, args) do
+      if strict_variables do
+        {:error, %Solid.UndefinedFilterError{filter: filter}, List.first(args)}
+      else
+        {:ok, List.first(args)}
+      end
     end
   end
 
-  defp apply_filter({m, f, a}) do
-    Kernel.apply(m, String.to_existing_atom(f), a)
-  end
-
-  defp filter_exists?({module, function, arity}) do
-    function = String.to_existing_atom(function)
-    function_exported?(module, function, arity)
+  defp apply_filter(mod, func, args) do
+    func = String.to_existing_atom(func)
+    {:ok, Kernel.apply(mod, func, args)}
   rescue
-    ArgumentError -> false
+    # Unknown function name atom or unknown function -> fallback
+    _ in [ArgumentError, UndefinedFunctionError] -> :error
   end
 
   defp any_to_float(string) when byte_size(string) > 0 do
@@ -577,7 +566,7 @@ defmodule Solid.Filter do
         last
       end
 
-    do_last_index(String.slice(input, 1..-1), string, index + 1, new_last)
+    do_last_index(String.slice(input, 1..-1//1), string, index + 1, new_last)
   end
 
   @doc """

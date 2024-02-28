@@ -35,7 +35,21 @@ defmodule Solid.Argument do
 
   defp do_get([value: val], _hash, _scopes), do: {:ok, val}
 
-  defp do_get([field: keys], context, scopes), do: Context.get_in(context, keys, scopes)
+  defp do_get([field: keys], context, scopes) do
+    keys =
+      Enum.map(keys, fn
+        {:field, inner_keys} ->
+          case Context.get_in(context, inner_keys, scopes) do
+            {:ok, val} -> val
+            _ -> nil
+          end
+
+        key ->
+          key
+      end)
+
+    Context.get_in(context, keys, scopes)
+  end
 
   defp apply_filters(input, nil, context, _opts), do: {input, context}
   defp apply_filters(input, [], context, _opts), do: {input, context}

@@ -43,7 +43,8 @@ defmodule Solid.Parser.Argument do
   end
 
   def with_parameter do
-    string("with")
+    "with"
+    |> string()
     |> ignore()
     |> ignore(space())
     |> concat(Variable.field())

@@ -14,7 +14,8 @@ defmodule Solid.Tag.For do
     space = Literal.whitespace(min: 0)
 
     range =
-      string("(")
+      "("
+      |> string()
       |> ignore()
       |> unwrap_and_tag(choice([integer(min: 1), Variable.field()]), :first)
       |> ignore(string(".."))
@@ -25,7 +26,8 @@ defmodule Solid.Tag.For do
     delimit = choice([space |> concat(string(~s(,))) |> concat(space), space])
 
     limit =
-      string("limit")
+      "limit"
+      |> string()
       |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
@@ -34,7 +36,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     offset =
-      string("offset")
+      "offset"
+      |> string()
       |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
@@ -43,7 +46,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     sort_by =
-      string("sort_by")
+      "sort_by"
+      |> string()
       |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
@@ -52,7 +56,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     order =
-      string("order")
+      "order"
+      |> string()
       |> ignore()
       |> ignore(space)
       |> ignore(string(":"))
@@ -75,7 +80,8 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     for_parameters =
-      choice([limit, offset, sort_by, order, reversed])
+      [limit, offset, sort_by, order, reversed]
+      |> choice()
       |> repeat()
       |> reduce({Enum, :into, [%{}]})
 
