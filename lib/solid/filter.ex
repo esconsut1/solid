@@ -148,6 +148,11 @@ defmodule Solid.Filter do
   The format for this syntax is the same as `Timex.format/3`.
 
   To get the current time, pass the special word `"now"` (or `"today"`) to `date`.
+
+  iex> Solid.Filter.date("1970-01-01 00:00:00Z", "%s")
+  "0"
+  iex> Solid.Filter.date("1970-01-01 00:00:01Z", "%s")
+  "1"
   """
   @spec date(DateTime.t() | NaiveDateTime.t() | integer() | String.t(), String.t()) :: String.t()
   def date(input, format \\ "%F %T")

@@ -65,6 +65,7 @@ defmodule Solid.Parser.Argument do
     space()
     |> ignore()
     |> ignore(string("|"))
+    |> times(min: 1)
     |> ignore(space())
     |> concat(filter_name)
     |> tag(

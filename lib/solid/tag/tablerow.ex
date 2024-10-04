@@ -186,7 +186,7 @@ defmodule Solid.Tag.Tablerow do
   defp enumerable([range: [first: first, last: last]], context) do
     {_, first, context} = integer_or_field(first, context)
     {_, last, context} = integer_or_field(last, context)
-    {:ok, first..last, context}
+    {:ok, first..last//1, context}
   end
 
   defp enumerable(field, context) do
@@ -202,13 +202,13 @@ defmodule Solid.Tag.Tablerow do
   end
 
   defp offset(enumerable, %{offset: offset}) do
-    Enum.slice(enumerable, offset..-1)
+    Enum.slice(enumerable, offset..-1//1)
   end
 
   defp offset(enumerable, _), do: enumerable
 
   defp limit(enumerable, %{limit: limit}) do
-    Enum.slice(enumerable, 0..(limit - 1))
+    Enum.slice(enumerable, 0..(limit - 1)//1)
   end
 
   defp limit(enumerable, _), do: enumerable

@@ -56,7 +56,8 @@ defmodule Solid.Parser.Base do
               Solid.Tag.Raw,
               Solid.Tag.Cycle,
               Solid.Tag.Render,
-              Solid.Tag.Tablerow
+              Solid.Tag.Tablerow,
+              Solid.Tag.Echo
             ],
             tag not in excluded_tags do
           tag(tag.spec(__MODULE__), tag)

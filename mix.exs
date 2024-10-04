@@ -8,7 +8,7 @@ defmodule Solid.Mixfile do
     [
       app: :solid,
       version: @version,
-      elixir: "~> 1.11",
+      elixir: "~> 1.15",
       elixirc_paths: elixirc_paths(Mix.env()),
       consolidate_protocols: Mix.env() != :test,
       build_embedded: Mix.env() == :prod,
@@ -24,7 +24,7 @@ defmodule Solid.Mixfile do
 
   defp deps do
     [
-      {:nimble_parsec, "~> 1.3"},
+      {:nimble_parsec, "~> 1.0"},
       {:timex, "~> 3.0"},
       {:jason, "~> 1.4", only: :test},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
