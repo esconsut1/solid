@@ -16,6 +16,8 @@ end
 
 defmodule Solid.Context do
   @moduledoc false
+  alias Solid.Indifferent
+
   defstruct vars: %{}, counter_vars: %{}, iteration_vars: %{}, cycle_state: %{}, errors: []
 
   @type t :: %__MODULE__{
@@ -119,14 +121,14 @@ defmodule Solid.Context do
   end
 
   defp do_get_in(data, [key | keys]) when is_map(data) and is_atom(key) do
-    case Map.fetch(data, key) do
+    case Indifferent.fetch(data, key) do
       {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
       _ -> {:error, :not_found}
     end
   end
 
   defp do_get_in(data, [key | keys]) when is_map(data) do
-    case Map.fetch(data, key) do
+    case Indifferent.fetch(data, key) do
       {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
       {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
       _ -> do_get_in(data, [String.to_atom(key) | keys])
