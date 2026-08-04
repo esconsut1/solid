@@ -1,0 +1,3 @@
+{{ products | sort: "price" | map: "name" | join: "," }}
+{{ products | sort_natural: "name" | map: "name" | join: "," }}
+{{ products | uniq: "type" | map: "type" | join: "," }}

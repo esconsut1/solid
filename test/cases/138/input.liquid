@@ -1,0 +1,6 @@
+{{ products | has: "type", "bath" }}
+{{ products | has: "type", "garage" }}
+{{ products | find: "type", "bath" | map: "name" | join: "," }}
+{{ products | find_index: "type", "bath" }}
+{{ products | reject: "type", "kitchen" | map: "name" | join: "," }}
+{{ products | where: "available" | map: "name" | join: "," }}

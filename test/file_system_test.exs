@@ -2,12 +2,13 @@ defmodule Solid.FileSystemTest do
   use ExUnit.Case, async: true
 
   alias Solid.BlankFileSystem
+  alias Solid.FileSystem.Error
   alias Solid.LocalFileSystem
 
   doctest Solid.FileSystem
 
   test "default file system" do
-    assert_raise File.Error, fn ->
+    assert_raise Error, fn ->
       BlankFileSystem.read_template_file("dummy", nil)
     end
   end
@@ -19,15 +20,15 @@ defmodule Solid.FileSystemTest do
     assert "/some/path/dir/_mypartial.liquid" ==
              LocalFileSystem.full_path("dir/mypartial", file_system)
 
-    assert_raise File.Error, fn ->
+    assert_raise Error, fn ->
       LocalFileSystem.full_path("../dir/mypartial", file_system)
     end
 
-    assert_raise File.Error, fn ->
+    assert_raise Error, fn ->
       LocalFileSystem.full_path("/dir/../../dir/mypartial", file_system)
     end
 
-    assert_raise File.Error, fn ->
+    assert_raise Error, fn ->
       LocalFileSystem.full_path("/etc/passwd", file_system)
     end
   end

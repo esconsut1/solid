@@ -1,13 +1,15 @@
 # Solid
 
-[![Build Status](https://github.com/edgurgel/solid/workflows/CI/badge.svg?branch=master)](https://github.com/edgurgel/solid/actions?query=workflow%3ACI)
+[![Build Status](https://github.com/edgurgel/solid/workflows/CI/badge.svg?branch=main)](https://github.com/edgurgel/solid/actions?query=workflow%3ACI)
 [![Module Version](https://img.shields.io/hexpm/v/solid.svg)](https://hex.pm/packages/solid)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-lightgreen.svg)](https://hexdocs.pm/solid/)
 [![Total Download](https://img.shields.io/hexpm/dt/solid.svg)](https://hex.pm/packages/solid)
-[![License](https://img.shields.io/hexpm/l/solid.svg)](https://github.com/edgurgel/solid/blob/master/LICENSE.md)
-[![Last Updated](https://img.shields.io/github/last-commit/edgurgel/solid.svg)](https://github.com/edgurgel/solid/commits/master)
+[![License](https://img.shields.io/hexpm/l/solid.svg)](https://github.com/edgurgel/solid/blob/main/LICENSE.md)
+[![Last Updated](https://img.shields.io/github/last-commit/edgurgel/solid.svg)](https://github.com/edgurgel/solid/commits/main)
 
-Solid is an implementation in Elixir of the template language [Liquid](https://shopify.github.io/liquid/). It uses [nimble_parsec](https://github.com/plataformatec/nimble_parsec) to generate the parser.
+Solid is an implementation in Elixir of the template language [Liquid](https://shopify.github.io/liquid/). It uses [nimble_parsec](https://github.com/dashbitco/nimble_parsec) to generate the parser.
+
+Standard filters and tags aim to match [Shopify/liquid](https://github.com/Shopify/liquid) behavior. Integration cases under `test/cases` are rendered against the Ruby Liquid gem for parity.
 
 ## Basic Usage
 
@@ -24,9 +26,32 @@ The package can be installed with:
 
 ```elixir
 def deps do
-  [{:solid, "~> 0.14"}]
+  [{:solid, "~> 0.15"}]
 end
 ```
+
+## Standard filters
+
+`Solid.Filter` implements Shopify Liquid’s standard filters, including:
+
+- **Strings:** `append`, `capitalize`, `downcase`, `upcase`, `lstrip`, `rstrip`, `strip`, `squish`, `prepend`, `remove`, `remove_first`, `remove_last`, `replace`, `replace_first`, `replace_last`, `split`, `truncate`, `truncatewords`, `strip_newlines`, `newline_to_br`, `strip_html`, `escape`, `escape_once`, `url_encode`, `url_decode`, `base64_encode`, `base64_decode`, `base64_url_safe_encode`, `base64_url_safe_decode`
+- **Arrays:** `compact`, `concat`, `first`, `last`, `join`, `map`, `reverse`, `size`, `slice`, `sort`, `sort_natural`, `uniq`, `where`, `reject`, `has`, `find`, `find_index`, `sum`
+- **Math:** `abs`, `at_least`, `at_most`, `ceil`, `divided_by`, `floor`, `minus`, `modulo`, `plus`, `round`, `times`
+- **Other:** `date`, `default`
+
+Property-based variants are supported where Liquid supports them (for example `sort: "price"`, `uniq: "type"`, `sum: "price"`, `where` / `reject` / `has` / `find` / `find_index`).
+
+`default` accepts Liquid’s `allow_false` option:
+
+```liquid
+{{ false | default: "fallback", allow_false: true }}
+```
+
+### Safe failure behavior
+
+Unknown filters return the input unchanged (unless `strict_filters: true`).
+
+For known filters, Solid avoids raising on type / clause mismatches: unmatched or invalid input typically returns the original value (or Liquid’s documented empty/`nil`/`[]` result). Examples: invalid Base64 decode returns the input; `concat` with a non-array argument returns the input; division by zero returns the input.
 
 ## Custom tags
 
@@ -108,6 +133,8 @@ opts = [custom_filters: MyCustomFilters, host: "http://example.com"]
 # http://example.com/styles/app.css
 ```
 
+Custom filters always take precedence over `Solid.Filter`. Standard filters remain available when the custom module does not define them.
+
 ## Strict rendering
 
 `Solid.render/3` doesn't raise or return errors unless `strict_variables: true` or `strict_filters: true` are passed as options.
@@ -116,6 +143,17 @@ If there are any missing variables/filters `Solid.render/3` returns `{:error, er
 
 `Solid.render!/3` raises if `strict_variables: true` is passed and there are missing variables.
 `Solid.render!/3` raises if `strict_filters: true` is passed and there are missing filters.
+
+## File system
+
+By default Solid uses `Solid.BlankFileSystem`, which raises `Solid.FileSystem.Error` when `{% render %}` / includes are used.
+
+Use `Solid.LocalFileSystem` (or your own `Solid.FileSystem` implementation) via the `file_system` option:
+
+```elixir
+fs = Solid.LocalFileSystem.new("/path/to/templates")
+Solid.render!(template, vars, file_system: {Solid.LocalFileSystem, fs})
+```
 
 ## Caching
 
@@ -144,7 +182,6 @@ defmodule CachexCache do
     end
   end
 end
-
 ```
 
 And then pass it as an option to render `cache_module: CachexCache`.
@@ -200,34 +237,16 @@ Solid.render(template, %{"number" => 4}, matcher_module: MyMatcher)
 
 ## Contributing
 
-When adding new functionality or fixing bugs consider adding a new test case here inside `test/cases`. These cases are tested against the Ruby gem so we can try to stay as close as possible to the original implementation.
+When adding new functionality or fixing bugs, add a case under `test/cases` when it makes sense. Those cases are compared to the Ruby [liquid](https://github.com/Shopify/liquid) gem via `test/liquid.rb`.
 
-## TODO
+For integration tests:
 
-- [x] Integration tests using Liquid gem to build fixtures; [#3](https://github.com/edgurgel/solid/pull/3)
-- [x] All the standard filters [#8](https://github.com/edgurgel/solid/issues/8)
-- [x] Support to custom filters [#11](https://github.com/edgurgel/solid/issues/11)
-- [x] Tags (if, case, unless, etc)
-  - [x] `for`
-    - [x] `else`
-    - [x] `break`
-    - [x] `continue`
-    - [x] `limit`
-    - [x] `offset`
-    - [x] Range (3..5)
-    - [x] `reversed`
-    - [x] `forloop` object
-  - [x] `raw` [#18](https://github.com/edgurgel/solid/issues/18)
-  - [x] `cycle` [#17](https://github.com/edgurgel/solid/issues/17)
-  - [x] `capture` [#19](https://github.com/edgurgel/solid/issues/19)
-  - [x] `increment` [#16](https://github.com/edgurgel/solid/issues/16)
-  - [x] `decrement` [#16](https://github.com/edgurgel/solid/issues/16)
-- [x] Boolean operators [#2](https://github.com/edgurgel/solid/pull/2)
-- [x] Whitespace control [#10](https://github.com/edgurgel/solid/issues/10)
+1. Install Ruby (see `.tool-versions`) and run `bundle install`
+2. Run `mix test`
 
 ## Copyright and License
 
-Copyright (c) 2016-2022 Eduardo Gurgel Pinho
+Copyright (c) 2016-2026 Eduardo Gurgel Pinho
 
 This work is free. You can redistribute it and/or modify it under the
 terms of the MIT License. See the [LICENSE.md](./LICENSE.md) file for more details.

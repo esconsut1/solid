@@ -89,4 +89,40 @@ defmodule Solid.Integration.FiltersTest do
     assert render("{{ \"̀etudes for elixir\" | replace_last: \"elixir\", \"erlang\" }}", %{}) ==
              "̀etudes for erlang"
   end
+
+  test "default with allow_false" do
+    assert render("{{ false | default: \"fallback\", allow_false: true }}", %{}) == "false"
+    assert render("{{ false | default: \"fallback\" }}", %{}) == "fallback"
+  end
+
+  test "squish filter" do
+    assert render("{{ \"  foo   bar  \" | squish }}", %{}) == "foo bar"
+  end
+
+  test "sum filter" do
+    assert render("{{ numbers | sum }}", %{"numbers" => [1, 2, 3]}) == "6"
+    assert render("{{ products | sum: \"price\" }}", %{"products" => [%{"price" => 1}, %{"price" => 2}]}) == "3"
+  end
+
+  test "reject has find find_index" do
+    products = [
+      %{"name" => "Sink", "type" => "kitchen", "available" => true},
+      %{"name" => "Tub", "type" => "bath", "available" => false}
+    ]
+
+    assert render("{{ products | has: \"type\", \"bath\" }}", %{"products" => products}) == "true"
+    assert render("{{ products | find_index: \"type\", \"bath\" }}", %{"products" => products}) == "1"
+
+    assert render("{{ products | reject: \"type\", \"kitchen\" | map: \"name\" | join: \",\" }}", %{
+             "products" => products
+           }) ==
+             "Tub"
+  end
+
+  test "soft fail on type mismatch returns input" do
+    assert render("{{ \"not-valid\" | base64_decode }}", %{}) == "not-valid"
+    assert render("{{ \"not-valid\" | base64_url_safe_decode }}", %{}) == "not-valid"
+    assert render("{{ \"abc\" | concat: \"def\" }}", %{}) == "abc"
+    assert render("{{ 5 | reverse }}", %{}) == "5"
+  end
 end

@@ -1,0 +1,1 @@
+{"products": [{"name": "Sink", "type": "kitchen", "available": true}, {"name": "Tub", "type": "bath", "available": false}, {"name": "Oven", "type": "kitchen", "available": true}]}

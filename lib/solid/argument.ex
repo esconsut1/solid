@@ -71,17 +71,33 @@ defmodule Solid.Argument do
     apply_filters(result, filters, context, opts)
   end
 
-  defp apply_filters(input, [{:filter, [filter, {:arguments, args}]} | filters], context, opts) do
+  defp apply_filters(input, [{:filter, [filter, {:arguments, args}]} | filters], context, opts) when is_list(args) do
+    {positional_args, named_ast} =
+      Enum.split_with(args, fn
+        {:named_arguments, _} -> false
+        _ -> true
+      end)
+
     {values, context} =
-      for arg <- args, reduce: {[], context} do
+      for arg <- positional_args, reduce: {[], context} do
         {values, context} ->
           {:ok, value, context} = get([arg], context, opts)
           {[value | values], context}
       end
 
+    {filter_args, context} =
+      case named_ast do
+        [{:named_arguments, named_args}] ->
+          {:ok, [named_map], context} = parse_named_arguments(named_args, context, opts)
+          {Enum.reverse(values, [named_map]), context}
+
+        _ ->
+          {Enum.reverse(values), context}
+      end
+
     {result, context} =
       filter
-      |> Filter.apply([input | Enum.reverse(values)], opts)
+      |> Filter.apply([input | filter_args], opts)
       |> case do
         {:error, exception, value} ->
           {value, Context.put_errors(context, exception)}

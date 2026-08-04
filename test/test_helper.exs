@@ -24,11 +24,14 @@ defmodule Solid.Helpers do
   end
 
   def liquid_render(input_liquid, input_json, template_dir) do
-    if template_dir do
-      System.cmd("ruby", ["test/liquid.rb", input_liquid, input_json, template_dir])
-    else
-      System.cmd("ruby", ["test/liquid.rb", input_liquid, input_json])
-    end
+    args =
+      if template_dir do
+        ["exec", "ruby", "test/liquid.rb", input_liquid, input_json, template_dir]
+      else
+        ["exec", "ruby", "test/liquid.rb", input_liquid, input_json]
+      end
+
+    System.cmd("bundle", args)
   end
 
   defmacro assert_render(liquid_input, json_input, template_dir, opts \\ []) do

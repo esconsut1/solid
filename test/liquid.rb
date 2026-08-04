@@ -1,3 +1,4 @@
+require 'base64'
 require 'liquid'
 require 'json'
 
@@ -7,12 +8,14 @@ module SubstituteFilter
   end
 end
 
-if ARGV[2]
-  Liquid::Template.file_system = Liquid::LocalFileSystem.new(ARGV[2])
-end
+file_system = ARGV[2] ? Liquid::LocalFileSystem.new(ARGV[2]) : Liquid::BlankFileSystem.new
 
-context = Liquid::Context.new(JSON.parse(ARGV[1]))
+environment =
+  Liquid::Environment.build(file_system: file_system) do |env|
+    env.register_filter(SubstituteFilter)
+  end
+
+context = Liquid::Context.build(environments: JSON.parse(ARGV[1]), environment: environment)
 context.add_filters(SubstituteFilter)
 
-
-puts Liquid::Template.parse(ARGV[0]).render(context)
+puts Liquid::Template.parse(ARGV[0], environment: environment).render(context)

@@ -16,29 +16,54 @@ defmodule Solid.Filter do
   {:error, %Solid.UndefinedFilterError{filter: "no_filter_here"}, 1}
   """
   def apply(filter, args, opts) do
-    custom_module = opts[:custom_filters] || Application.get_env(:solid, :custom_filters, __MODULE__)
-
+    custom_module = opts[:custom_filters] || Application.get_env(:solid, :custom_filters)
     strict_variables = Keyword.get(opts, :strict_filters, false)
-
     args_with_opts = args ++ [opts]
 
-    with :error <- apply_filter(custom_module, filter, args_with_opts),
-         :error <- apply_filter(custom_module, filter, args),
-         :error <- apply_filter(__MODULE__, filter, args) do
-      if strict_variables do
-        {:error, %Solid.UndefinedFilterError{filter: filter}, List.first(args)}
+    result =
+      if is_atom(custom_module) and custom_module != __MODULE__ do
+        with :error <- apply_filter(custom_module, filter, args_with_opts),
+             :error <- apply_filter(custom_module, filter, args),
+             do: apply_filter(__MODULE__, filter, args)
       else
-        {:ok, List.first(args)}
+        apply_filter(__MODULE__, filter, args)
       end
+
+    case result do
+      {:ok, value} ->
+        {:ok, value}
+
+      :error ->
+        if strict_variables do
+          {:error, %Solid.UndefinedFilterError{filter: filter}, List.first(args)}
+        else
+          {:ok, List.first(args)}
+        end
     end
   end
 
   defp apply_filter(mod, func, args) do
-    func = String.to_existing_atom(func)
-    {:ok, Kernel.apply(mod, func, args)}
+    case safe_existing_atom(func) do
+      {:ok, func_atom} ->
+        if function_exported?(mod, func_atom, length(args)) do
+          try do
+            {:ok, Kernel.apply(mod, func_atom, args)}
+          rescue
+            FunctionClauseError -> :error
+          end
+        else
+          :error
+        end
+
+      :error ->
+        :error
+    end
+  end
+
+  defp safe_existing_atom(func) do
+    {:ok, String.to_existing_atom(func)}
   rescue
-    # Unknown function name atom or unknown function -> fallback
-    _ in [ArgumentError, UndefinedFunctionError] -> :error
+    ArgumentError -> :error
   end
 
   defp any_to_float(string) when byte_size(string) > 0 do
@@ -70,6 +95,71 @@ defmodule Solid.Filter do
     end
   end
 
+  defp as_array(input) when is_list(input), do: List.flatten(input)
+  defp as_array(input) when is_map(input) and not is_struct(input), do: [input]
+  defp as_array(nil), do: []
+  defp as_array(input), do: [input]
+
+  defp truthy?(nil), do: false
+  defp truthy?(false), do: false
+  defp truthy?(_), do: true
+
+  defp blank?(nil), do: true
+  defp blank?(false), do: true
+  defp blank?([]), do: true
+  defp blank?(""), do: true
+  defp blank?(input) when is_map(input) and not is_struct(input), do: map_size(input) == 0
+  defp blank?(_), do: false
+
+  defp integer_like?(operand) when is_integer(operand), do: true
+
+  defp integer_like?(operand) when is_binary(operand) do
+    case Integer.parse(operand) do
+      {_i, ""} -> true
+      _ -> false
+    end
+  end
+
+  defp integer_like?(_), do: false
+
+  defp nil_safe_lte?(a, b) do
+    cond do
+      is_nil(a) and is_nil(b) -> true
+      is_nil(a) -> false
+      is_nil(b) -> true
+      true -> a <= b
+    end
+  end
+
+  defp nil_safe_casey_lte?(a, b) do
+    cond do
+      is_nil(a) and is_nil(b) -> true
+      is_nil(a) -> false
+      is_nil(b) -> true
+      true -> String.downcase(to_string(a)) <= String.downcase(to_string(b))
+    end
+  end
+
+  defp filter_array(input, property, target_value, default, fun) do
+    ary = as_array(input)
+
+    if ary == [] do
+      default
+    else
+      fun.(ary, fn
+        item when is_map(item) ->
+          if is_nil(target_value) do
+            truthy?(item[property])
+          else
+            item[property] == target_value
+          end
+
+        _item ->
+          false
+      end)
+    end
+  end
+
   @doc """
   Returns the absolute value of a number.
 
@@ -86,7 +176,7 @@ defmodule Solid.Filter do
   end
 
   def abs(input) when is_number(input), do: Kernel.abs(input)
-  def abs(_), do: nil
+  def abs(input), do: input
 
   @doc """
   Concatenates two strings and returns the concatenated value.
@@ -105,8 +195,13 @@ defmodule Solid.Filter do
   iex> Solid.Filter.at_least(2, 4)
   4
   """
-  @spec at_least(number, number) :: number
-  def at_least(input, minimum), do: max(input, minimum)
+  @spec at_least(any, any) :: number
+  def at_least(input, minimum) do
+    a = any_to_float(input)
+    b = any_to_float(minimum)
+
+    if a && b, do: a |> max(b) |> number_trunc(), else: input
+  end
 
   @doc """
   Limits a number to a maximum value.
@@ -116,8 +211,13 @@ defmodule Solid.Filter do
   iex> Solid.Filter.at_most(2, 4)
   2
   """
-  @spec at_most(number, number) :: number
-  def at_most(input, maximum), do: min(input, maximum)
+  @spec at_most(any, any) :: number
+  def at_most(input, maximum) do
+    a = any_to_float(input)
+    b = any_to_float(maximum)
+
+    if a && b, do: a |> min(b) |> number_trunc(), else: input
+  end
 
   @doc """
   Makes the first character of a string capitalized.
@@ -139,7 +239,7 @@ defmodule Solid.Filter do
   end
 
   def ceil(input) when is_number(input), do: Kernel.ceil(input)
-  def ceil(_), do: nil
+  def ceil(input), do: input
 
   @doc """
   Converts a `DateTime`/`NaiveDateTime` struct into another date format.
@@ -206,14 +306,27 @@ defmodule Solid.Filter do
 
   iex> Solid.Filter.default([], 456)
   456
+
+  iex> Solid.Filter.default(false, 456, %{"allow_false" => true})
+  false
   """
   @spec default(any, any) :: any
-  def default(nil, value), do: value
-  def default(false, value), do: value
-  def default([], value), do: value
-  def default("", value), do: value
-  def default(input, value) when map_size(input) == 0, do: value
-  def default(input, _), do: input
+  @spec default(any, any, map) :: any
+  def default(input, value \\ "", options \\ %{})
+
+  def default(input, value, options) when is_map(options) do
+    allow_false = Map.get(options, "allow_false") || Map.get(options, :allow_false)
+
+    cond do
+      allow_false && is_nil(input) -> value
+      allow_false && blank?(input) && not is_boolean(input) -> value
+      allow_false -> input
+      blank?(input) -> value
+      true -> input
+    end
+  end
+
+  def default(input, value, _), do: default(input, value, %{})
 
   @doc """
   Divides a number by the specified number.
@@ -227,17 +340,26 @@ defmodule Solid.Filter do
   1
   iex> Solid.Filter.divided_by(20, 7)
   2
+  iex> Solid.Filter.divided_by(20, 7.0)
+  2.857142857142857
   """
-  @spec divided_by(number, number) :: number
-  def divided_by(input, operand) when is_integer(operand) do
-    if i = any_to_float(input) do
-      (i / operand) |> Float.floor() |> trunc()
-    end
-  end
+  @spec divided_by(any, any) :: number
+  def divided_by(input, operand) do
+    a = any_to_float(input)
+    b = any_to_float(operand)
 
-  def divided_by(input, operand) when is_float(operand) do
-    if i = any_to_float(input) do
-      i / operand
+    cond do
+      is_nil(a) or is_nil(b) ->
+        input
+
+      b == 0 ->
+        input
+
+      integer_like?(operand) ->
+        (a / b) |> Float.floor() |> trunc()
+
+      true ->
+        a / b
     end
   end
 
@@ -280,9 +402,14 @@ defmodule Solid.Filter do
   1
   iex> Solid.Filter.first([])
   nil
+  iex> Solid.Filter.first("A string")
+  "A"
+  iex> Solid.Filter.first(5)
+  nil
   """
-  @spec first(list | binary) :: any
+  @spec first(any) :: any
   def first(input) when is_list(input), do: List.first(input)
+  def first(input) when is_binary(input), do: String.first(input) || ""
   def first(_), do: nil
 
   @doc """
@@ -296,10 +423,12 @@ defmodule Solid.Filter do
   iex> Solid.Filter.floor("3.5")
   3
   """
-  @spec floor(number | String.t()) :: integer
+  @spec floor(any) :: integer
   def floor(input) do
     if i = any_to_float(input) do
       i |> Float.floor() |> trunc()
+    else
+      input
     end
   end
 
@@ -309,9 +438,12 @@ defmodule Solid.Filter do
   iex> Solid.Filter.compact([1, nil, 2, nil, 3])
   [1, 2, 3]
   """
-  @spec compact(list) :: list
+  @spec compact(any) :: list | any
   def compact(input) when is_list(input), do: Enum.reject(input, &is_nil/1)
+  def compact(input), do: input
+
   def compact(input, property) when is_list(input), do: Enum.reject(input, &(&1[property] == nil))
+  def compact(input, _), do: input
 
   @doc """
   Concatenates (joins together) multiple arrays.
@@ -320,10 +452,12 @@ defmodule Solid.Filter do
   iex> Solid.Filter.concat([1, 2], [3, 4])
   [1, 2, 3, 4]
   """
-  @spec concat(list, list) :: list
+  @spec concat(any, any) :: list | any
   def concat(input, list) when is_list(input) and is_list(list) do
     input ++ list
   end
+
+  def concat(input, _), do: input
 
   @doc """
   Join a list of strings returning one String glued by `glue`
@@ -333,10 +467,16 @@ defmodule Solid.Filter do
   iex> Solid.Filter.join(["a", "b", "c"], "-")
   "a-b-c"
   """
-  @spec join(list, String.t()) :: String.t()
+  @spec join(any, String.t()) :: String.t() | any
   def join(input, glue \\ " ")
   def join(input, glue) when is_list(input), do: Enum.join(input, glue)
-  def join(_, _), do: nil
+
+  def join(input, glue) do
+    case as_array(input) do
+      [] -> input
+      ary -> Enum.join(ary, glue)
+    end
+  end
 
   @doc """
   Returns the last item of an array.
@@ -345,9 +485,14 @@ defmodule Solid.Filter do
   3
   iex> Solid.Filter.last([])
   nil
+  iex> Solid.Filter.last("A string")
+  "g"
+  iex> Solid.Filter.last(5)
+  nil
   """
-  @spec last(list) :: any
+  @spec last(any) :: any
   def last(input) when is_list(input), do: List.last(input)
+  def last(input) when is_binary(input), do: String.last(input) || ""
   def last(_), do: nil
 
   @doc """
@@ -357,7 +502,7 @@ defmodule Solid.Filter do
   iex> Solid.Filter.lstrip("          So much room for activities!          ")
   "So much room for activities!          "
   """
-  @spec lstrip(String.t()) :: String.t()
+  @spec lstrip(any) :: String.t()
   def lstrip(input), do: input |> to_string() |> String.trim_leading()
 
   @doc """
@@ -372,13 +517,29 @@ defmodule Solid.Filter do
   def split(input, pattern), do: input |> to_string() |> String.split(pattern)
 
   @doc """
+  Removes leading and trailing whitespace and collapses consecutive whitespace to a single space.
+
+  iex> Solid.Filter.squish("  foo   bar  \\n  baz  ")
+  "foo bar baz"
+  """
+  @spec squish(any) :: String.t() | nil
+  def squish(nil), do: nil
+
+  def squish(input) do
+    input
+    |> to_string()
+    |> String.trim()
+    |> String.replace(~r/\s+/, " ")
+  end
+
+  @doc """
   Map through a list of hashes accessing `property`
 
   iex> Solid.Filter.map([%{"a" => "A"}, %{"a" => 1}], "a")
   ["A", 1]
   """
-  def map(input, property) when is_list(input) do
-    for i <- input, do: i[property]
+  def map(input, property) do
+    for i <- as_array(input), do: access_property(i, property)
   end
 
   @doc """
@@ -398,6 +559,8 @@ defmodule Solid.Filter do
 
     if a && b do
       number_trunc(a - b)
+    else
+      input
     end
   end
 
@@ -411,26 +574,38 @@ defmodule Solid.Filter do
   iex> Solid.Filter.modulo(183.357, 12)
   3.357
   """
-  @spec modulo(number, number) :: number
-  def modulo(dividend, divisor) when is_integer(dividend) and is_integer(divisor), do: Integer.mod(dividend, divisor)
+  @spec modulo(any, any) :: number
+  def modulo(dividend, divisor) when is_integer(dividend) and is_integer(divisor) and divisor != 0 do
+    Integer.mod(dividend, divisor)
+  end
 
-  # OTP 20+
+  def modulo(dividend, divisor) when is_integer(dividend) and is_integer(divisor), do: dividend
+
   def modulo(dividend, divisor) do
     a = any_to_float(dividend)
     b = any_to_float(divisor)
 
-    if a && b do
-      a
-      |> :math.fmod(b)
-      |> Float.round(decimal_places(dividend))
+    cond do
+      is_nil(a) or is_nil(b) ->
+        dividend
+
+      b == 0 ->
+        dividend
+
+      true ->
+        a
+        |> :math.fmod(b)
+        |> Float.round(decimal_places(dividend))
     end
   end
 
-  defp decimal_places(float) do
+  defp decimal_places(float) when is_float(float) do
     string = Float.to_string(float)
     {start, _} = :binary.match(string, ".")
     byte_size(string) - start - 1
   end
+
+  defp decimal_places(_), do: 0
 
   @doc """
   Adds a number to another number.
@@ -452,6 +627,8 @@ defmodule Solid.Filter do
   def plus(input, number) when is_number(input) do
     if y = any_to_float(number) do
       number_trunc(input + y)
+    else
+      input
     end
   end
 
@@ -461,7 +638,9 @@ defmodule Solid.Filter do
     end
   end
 
-  def plus(_input, number), do: number
+  def plus(input, number) do
+    if y = any_to_float(number), do: y, else: input
+  end
 
   @doc """
   Adds the specified string to the beginning of another string.
@@ -580,8 +759,10 @@ defmodule Solid.Filter do
   iex> Solid.Filter.reverse(["a", "b", "c"])
   ["c", "b", "a"]
   """
-  @spec reverse(list) :: list
-  def reverse(input), do: Enum.reverse(input)
+  @spec reverse(any) :: list | any
+  def reverse(input) when is_list(input), do: Enum.reverse(input)
+  def reverse(input) when is_map(input) and not is_struct(input), do: [input]
+  def reverse(input), do: input
 
   @doc """
   Rounds an input number to the nearest integer or,
@@ -594,13 +775,23 @@ defmodule Solid.Filter do
   iex> Solid.Filter.round(183.357, 2)
   183.36
   """
-  @spec round(number) :: integer
+  @spec round(any) :: number | any
   def round(input, precision \\ nil)
-  def round(input, nil), do: Kernel.round(input)
+
+  def round(input, nil) do
+    if i = any_to_float(input), do: Kernel.round(i), else: input
+  end
 
   def round(input, precision) do
-    p = :math.pow(10, precision)
-    Kernel.round(input * p) / p
+    i = any_to_float(input)
+    p = any_to_float(precision)
+
+    if i && p do
+      factor = :math.pow(10, p)
+      Kernel.round(i * factor) / factor
+    else
+      input
+    end
   end
 
   @doc """
@@ -644,7 +835,7 @@ defmodule Solid.Filter do
   iex> Solid.Filter.slice("Liquid", -3, 2)
   "ui"
   """
-  @spec slice(String.t() | list(), integer, non_neg_integer | nil) :: String.t()
+  @spec slice(String.t() | list(), integer, non_neg_integer | nil) :: String.t() | list | any
   def slice(input, offset, length \\ nil)
 
   def slice(input, offset, nil) when is_binary(input), do: input |> to_string() |> String.at(offset)
@@ -653,26 +844,54 @@ defmodule Solid.Filter do
 
   def slice(input, _offset, nil) when is_list(input), do: input
   def slice(input, offset, length) when is_list(input), do: Enum.slice(input, offset, length)
+  def slice(input, _, _), do: input
 
   @doc """
-  Sorts items in an array by a property of an item in the array. The order of the sorted array is case-sensitive.
+  Sorts items in an array. The order of the sorted array is case-sensitive.
 
   iex> Solid.Filter.sort(~w(zebra octopus giraffe SallySnake))
   ~w(SallySnake giraffe octopus zebra)
+
+  iex> Solid.Filter.sort([%{"a" => 2}, %{"a" => 1}], "a")
+  [%{"a" => 1}, %{"a" => 2}]
   """
-  @spec sort(list) :: list
-  def sort(input), do: Enum.sort(input)
+  @spec sort(any) :: list | any
+  @spec sort(any, any) :: list | any
+  def sort(input) when is_list(input), do: Enum.sort(input)
+  def sort(input), do: input
+
+  def sort(input, property) when is_list(input) do
+    Enum.sort_by(input, &access_property(&1, property), &nil_safe_lte?/2)
+  rescue
+    _ -> input
+  end
+
+  def sort(input, _), do: input
 
   @doc """
-  Sorts items in an array by a property of an item in the array. The order of the sorted array is case-sensitive.
+  Sorts items in an array in case-insensitive order.
 
   iex> Solid.Filter.sort_natural(~w(zebra octopus giraffe SallySnake))
   ~w(giraffe octopus SallySnake zebra)
   """
-  @spec sort_natural(list) :: list
-  def sort_natural(input) do
-    Enum.sort(input, &(String.downcase(&1) <= String.downcase(&2)))
+  @spec sort_natural(any) :: list | any
+  @spec sort_natural(any, any) :: list | any
+  def sort_natural(input) when is_list(input) do
+    Enum.sort(input, &(String.downcase(to_string(&1)) <= String.downcase(to_string(&2))))
   end
+
+  def sort_natural(input), do: input
+
+  def sort_natural(input, property) when is_list(input) do
+    Enum.sort_by(input, &access_property(&1, property), &nil_safe_casey_lte?/2)
+  rescue
+    _ -> input
+  end
+
+  def sort_natural(input, _), do: input
+
+  defp access_property(item, property) when is_map(item), do: item[property]
+  defp access_property(_, _), do: nil
 
   @doc """
   Removes all whitespace (tabs, spaces, and newlines) from both the left and right side of a string.
@@ -694,13 +913,15 @@ defmodule Solid.Filter do
   iex> Solid.Filter.times(183.357, 12)
   2200.284
   """
-  @spec times(number, number) :: number
+  @spec times(any, any) :: number
   def times(input, operand) do
     a = any_to_float(input)
     b = any_to_float(operand)
 
     if a && b do
       number_trunc(a * b)
+    else
+      input
     end
   end
 
@@ -788,9 +1009,22 @@ defmodule Solid.Filter do
   Output
   iex> Solid.Filter.uniq(~w(ants bugs bees bugs ants))
   ~w(ants bugs bees)
+
+  iex> Solid.Filter.uniq([%{"a" => 1}, %{"a" => 1}, %{"a" => 2}], "a")
+  [%{"a" => 1}, %{"a" => 2}]
   """
-  @spec uniq(list) :: list
-  def uniq(input), do: Enum.uniq(input)
+  @spec uniq(any) :: list | any
+  @spec uniq(any, any) :: list | any
+  def uniq(input) when is_list(input), do: Enum.uniq(input)
+  def uniq(input), do: input
+
+  def uniq(input, property) when is_list(input) do
+    Enum.uniq_by(input, &access_property(&1, property))
+  rescue
+    _ -> input
+  end
+
+  def uniq(input, _), do: input
 
   @doc """
   Removes any newline characters (line breaks) from a string.
@@ -841,20 +1075,99 @@ defmodule Solid.Filter do
 
   iex> input = [
   ...>   %{"id" => 1, "available" => true},
-  ...>   %{"id" => 2, "type" => false},
+  ...>   %{"id" => 2, "available" => false},
   ...>   %{"id" => 3, "available" => true}
   ...> ]
   iex> Solid.Filter.where(input, "available")
   [%{"id" => 1, "available" => true}, %{"id" => 3, "available" => true}]
   """
-  @spec where(list, String.t(), String.t()) :: list
-  def where(input, key, value) do
-    for %{} = map <- input, map[key] == value, do: map
-  end
+  @spec where(any, any) :: list
+  @spec where(any, any, any) :: list
+  def where(input, key, value), do: filter_array(input, key, value, [], &Enum.filter/2)
+  def where(input, key), do: filter_array(input, key, nil, [], &Enum.filter/2)
 
-  @spec where(list, String.t()) :: list
-  def where(input, key) do
-    for %{} = map <- input, Map.has_key?(map, key), do: map
+  @doc """
+  Filters an array to exclude items with a specific property value.
+
+  iex> input = [
+  ...>   %{"id" => 1, "type" => "kitchen"},
+  ...>   %{"id" => 2, "type" => "bath"},
+  ...>   %{"id" => 3, "type" => "kitchen"}
+  ...> ]
+  iex> Solid.Filter.reject(input, "type", "kitchen")
+  [%{"id" => 2, "type" => "bath"}]
+  """
+  @spec reject(any, any) :: list
+  @spec reject(any, any, any) :: list
+  def reject(input, key, value), do: filter_array(input, key, value, [], &Enum.reject/2)
+  def reject(input, key), do: filter_array(input, key, nil, [], &Enum.reject/2)
+
+  @doc """
+  Tests if any item in an array has a specific property value.
+
+  iex> input = [%{"type" => "kitchen"}, %{"type" => "bath"}]
+  iex> Solid.Filter.has(input, "type", "bath")
+  true
+  iex> Solid.Filter.has(input, "type", "garage")
+  false
+  """
+  @spec has(any, any) :: boolean
+  @spec has(any, any, any) :: boolean
+  def has(input, key, value), do: filter_array(input, key, value, false, &Enum.any?/2)
+  def has(input, key), do: filter_array(input, key, nil, false, &Enum.any?/2)
+
+  @doc """
+  Returns the first item in an array with a specific property value.
+
+  iex> input = [%{"type" => "kitchen"}, %{"type" => "bath"}]
+  iex> Solid.Filter.find(input, "type", "bath")
+  %{"type" => "bath"}
+  """
+  @spec find(any, any) :: any
+  @spec find(any, any, any) :: any
+  def find(input, key, value), do: filter_array(input, key, value, nil, &Enum.find/2)
+  def find(input, key), do: filter_array(input, key, nil, nil, &Enum.find/2)
+
+  @doc """
+  Returns the index of the first item in an array with a specific property value.
+
+  iex> input = [%{"type" => "kitchen"}, %{"type" => "bath"}]
+  iex> Solid.Filter.find_index(input, "type", "bath")
+  1
+  """
+  @spec find_index(any, any) :: non_neg_integer | nil
+  @spec find_index(any, any, any) :: non_neg_integer | nil
+  def find_index(input, key, value), do: filter_array(input, key, value, nil, &Enum.find_index/2)
+  def find_index(input, key), do: filter_array(input, key, nil, nil, &Enum.find_index/2)
+
+  @doc """
+  Returns the sum of all elements in an array.
+
+  iex> Solid.Filter.sum([1, 2, 3])
+  6
+  iex> Solid.Filter.sum([%{"price" => 1}, %{"price" => 2}], "price")
+  3
+  iex> Solid.Filter.sum([])
+  0
+  """
+  @spec sum(any) :: number
+  @spec sum(any, any) :: number
+  def sum(input, property \\ nil)
+
+  def sum(input, property) do
+    input
+    |> as_array()
+    |> Enum.reduce(0, fn item, acc ->
+      value =
+        cond do
+          is_nil(property) -> item
+          is_map(item) -> item[property]
+          true -> 0
+        end
+
+      acc + (any_to_float(value) || 0)
+    end)
+    |> number_trunc()
   end
 
   @doc """
@@ -956,12 +1269,17 @@ defmodule Solid.Filter do
 
   iex> Solid.Filter.base64_decode("YXBwbGVz")
   "apples"
+  iex> Solid.Filter.base64_decode("not-valid")
+  "not-valid"
   """
   @spec base64_decode(iodata()) :: String.t()
   def base64_decode(iodata) do
-    iodata
-    |> to_string()
-    |> Base.decode64!()
+    input = to_string(iodata)
+
+    case Base.decode64(input) do
+      {:ok, decoded} -> decoded
+      :error -> input
+    end
   end
 
   @doc """
@@ -982,11 +1300,16 @@ defmodule Solid.Filter do
 
   iex> Solid.Filter.base64_url_safe_decode("YXBwbGVz")
   "apples"
+  iex> Solid.Filter.base64_url_safe_decode("not-valid")
+  "not-valid"
   """
   @spec base64_url_safe_decode(iodata()) :: String.t()
   def base64_url_safe_decode(iodata) do
-    iodata
-    |> to_string()
-    |> Base.url_decode64!()
+    input = to_string(iodata)
+
+    case Base.url_decode64(input) do
+      {:ok, decoded} -> decoded
+      :error -> input
+    end
   end
 end

@@ -28,5 +28,6 @@ solid-*.tar
 # Misc.
 /src/solid_parser.erl
 .DS_Store
+.elixir_ls
 
 Gemfile.lock

@@ -75,5 +75,36 @@ defmodule Solid.Parser.Argument do
     |> tag(:filter)
   end
 
-  def arguments, do: choice([named_arguments(), positional_arguments()])
+  def named_argument_start do
+    argument_name()
+    |> ignore(space())
+    |> string(":")
+  end
+
+  def positional_then_named_arguments do
+    argument()
+    |> repeat(
+      space()
+      |> ignore()
+      |> ignore(string(","))
+      |> ignore(space())
+      |> lookahead_not(named_argument_start())
+      |> concat(argument())
+    )
+    |> concat(
+      space()
+      |> ignore()
+      |> ignore(string(","))
+      |> ignore(space())
+      |> concat(named_arguments())
+    )
+  end
+
+  def arguments do
+    choice([
+      named_arguments(),
+      positional_then_named_arguments(),
+      positional_arguments()
+    ])
+  end
 end
