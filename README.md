@@ -53,6 +53,15 @@ Unknown filters return the input unchanged (unless `strict_filters: true`).
 
 For known filters, Solid avoids raising on type / clause mismatches: unmatched or invalid input typically returns the original value (or Liquid’s documented empty/`nil`/`[]` result). Examples: invalid Base64 decode returns the input; `concat` with a non-array argument returns the input; division by zero returns the input.
 
+## Standard tags
+
+Solid implements the tags documented on [shopify.github.io/liquid](https://shopify.github.io/liquid/):
+
+- **Control flow:** `if`, `unless`, `elsif`, `else`, `case`, `when`
+- **Iteration:** `for` (with `limit`, `offset`, `offset: continue`, `reversed`, ranges), `break`, `continue`, `cycle`, `tablerow`
+- **Variables:** `assign`, `capture`, `increment`, `decrement`
+- **Template:** `comment`, `{% # ... %}` inline comments, `raw`, `liquid`, `echo`, `doc`, `render` (including `with` / `for` / `as`), `include` (deprecated; shared scope)
+
 ## Custom tags
 
 To implement a new tag you need to create a new module that implements the `Tag` behaviour:

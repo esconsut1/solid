@@ -35,6 +35,8 @@ defmodule Solid.Argument do
 
   defp do_get([value: val], _hash, _scopes), do: {:ok, val}
 
+  defp do_get({:field, keys}, context, scopes), do: do_get([field: keys], context, scopes)
+
   defp do_get([field: keys], context, scopes) do
     keys =
       Enum.map(keys, fn

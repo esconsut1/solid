@@ -1,0 +1,2 @@
+{% assign items = "a,b,c" | split: "," %}
+{% render "inner" for items as item %}

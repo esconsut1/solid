@@ -23,27 +23,10 @@ defmodule Solid.Tag.Tablerow do
       |> ignore(string(")"))
       |> tag(:range)
 
-    delimit = choice([space |> concat(string(~s(,))) |> concat(space), space])
+    delimit = Solid.Parser.LoopParameters.delimit()
 
-    limit =
-      "limit"
-      |> string()
-      |> ignore()
-      |> ignore(space)
-      |> ignore(string(":"))
-      |> ignore(space)
-      |> unwrap_and_tag(integer(min: 1), :limit)
-      |> ignore(delimit)
-
-    offset =
-      "offset"
-      |> string()
-      |> ignore()
-      |> ignore(space)
-      |> ignore(string(":"))
-      |> ignore(space)
-      |> unwrap_and_tag(integer(min: 1), :offset)
-      |> ignore(delimit)
+    limit = Solid.Parser.LoopParameters.limit()
+    offset = Solid.Parser.LoopParameters.offset()
 
     cols =
       "cols"
@@ -56,10 +39,7 @@ defmodule Solid.Tag.Tablerow do
       |> ignore(delimit)
 
     for_parameters =
-      [limit, offset, cols]
-      |> choice()
-      |> repeat()
-      |> reduce({Enum, :into, [%{}]})
+      Solid.Parser.LoopParameters.reduce_parameters([limit, offset, cols])
 
     BaseTag.opening_tag()
     |> ignore()
@@ -81,14 +61,18 @@ defmodule Solid.Tag.Tablerow do
 
   @impl true
   def render(
-        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] = exp,
+        [{:field, [enumerable_key]}, {:enumerable, enumerable_ast}, {:parameters, parameters} | _] = exp,
         context,
         options
       ) do
-    {:ok, enumerable, context} = enumerable(enumerable, context)
+    {:ok, enumerable, context} = evaluate_enumerable(enumerable_ast, context)
+    loop_name = Solid.LoopSlice.loop_name(enumerable_key, enumerable_ast)
 
-    enumerable = apply_parameters(enumerable, parameters)
-    exp = Keyword.get(exp, :result)
+    {enumerable, context} =
+      Solid.LoopSlice.apply(enumerable, Map.take(parameters, [:limit, :offset]), context, loop_name)
+
+    enumerable = cols(enumerable, parameters)
+    body = Keyword.fetch!(exp, :result)
     row_length = Enum.count(enumerable)
 
     {result, context} =
@@ -111,7 +95,7 @@ defmodule Solid.Tag.Tablerow do
                   )
 
                 try do
-                  {col_result, col_acc_context} = Solid.render(exp, col_acc_context, options)
+                  {col_result, col_acc_context} = Solid.render(body, col_acc_context, options)
 
                   col_acc_context =
                     restore_initial_forloop_value(col_acc_context, col_acc_context_initial)
@@ -183,35 +167,16 @@ defmodule Solid.Tag.Tablerow do
     acc_context
   end
 
-  defp enumerable([range: [first: first, last: last]], context) do
+  defp evaluate_enumerable([range: [first: first, last: last]], context) do
     {_, first, context} = integer_or_field(first, context)
     {_, last, context} = integer_or_field(last, context)
-    {:ok, first..last//1, context}
+    {:ok, Enum.to_list(first..last//1), context}
   end
 
-  defp enumerable(field, context) do
+  defp evaluate_enumerable(field, context) do
     {:ok, value, context} = Solid.Argument.get(field, context)
-    {:ok, value || [], context}
+    {:ok, Solid.Utils.enumerable_to_list(value || []), context}
   end
-
-  defp apply_parameters(enumerable, parameters) do
-    enumerable
-    |> offset(parameters)
-    |> limit(parameters)
-    |> cols(parameters)
-  end
-
-  defp offset(enumerable, %{offset: offset}) do
-    Enum.slice(enumerable, offset..-1//1)
-  end
-
-  defp offset(enumerable, _), do: enumerable
-
-  defp limit(enumerable, %{limit: limit}) do
-    Enum.slice(enumerable, 0..(limit - 1)//1)
-  end
-
-  defp limit(enumerable, _), do: enumerable
 
   defp cols(enumerable, %{cols: cols}) do
     Enum.chunk_every(enumerable, cols)

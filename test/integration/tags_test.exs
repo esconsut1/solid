@@ -627,6 +627,18 @@ defmodule Solid.Integration.TagsTest do
     end
   end
 
+  defmodule FakeForFileSystem do
+    @moduledoc false
+    def read_template_file("item", _opts), do: "{{ item }}-{{ forloop.index }}"
+  end
+
+  defmodule FakeIncludeFileSystem do
+    @moduledoc false
+    def read_template_file("snippet", _opts) do
+      "{{ greeting }}{% assign greeting = \"world\" %}"
+    end
+  end
+
   describe "render" do
     test "variable scope is respected" do
       text = """
@@ -674,6 +686,59 @@ defmodule Solid.Integration.TagsTest do
 
              end
              """
+    end
+
+    test "render for iterates over collection" do
+      text = "{% render \"item\" for items as item %}"
+
+      assert render(text, %{"items" => ["a", "b"]}, file_system: {FakeForFileSystem, []}) ==
+               "a-1b-2"
+    end
+  end
+
+  describe "doc" do
+    test "doc content is not rendered" do
+      text = "before{% doc %}docs here{% enddoc %}after"
+      assert render(text, %{}) == "beforeafter"
+    end
+  end
+
+  describe "liquid" do
+    test "liquid tag executes multiple statements" do
+      text = """
+      {% liquid
+        assign greeting = "hello"
+        echo greeting
+      %}
+      """
+
+      assert String.trim(render(text, %{})) == "hello"
+    end
+  end
+
+  describe "include" do
+    test "include shares parent scope" do
+      text = "{% assign greeting = \"hello\" %}{% include \"snippet\" %}{{ greeting }}"
+
+      assert render(text, %{}, file_system: {FakeIncludeFileSystem, []}) == "helloworld"
+    end
+  end
+
+  describe "for offset continue" do
+    test "offset continue resumes previous loop" do
+      text = """
+      {% for item in array limit: 3 %}{{ item }}{% endfor %}
+      {% for item in array limit: 3 offset: continue %}{{ item }}{% endfor %}
+      """
+
+      assert text |> render(%{"array" => [1, 2, 3, 4, 5, 6]}) |> String.replace(~r/\s+/, "") ==
+               "123456"
+    end
+
+    test "variable limit and offset" do
+      text = "{% for item in array limit: lim offset: off %}{{ item }}{% endfor %}"
+
+      assert render(text, %{"array" => [1, 2, 3, 4, 5], "lim" => 2, "off" => 1}) == "23"
     end
   end
 end

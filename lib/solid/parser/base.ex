@@ -48,6 +48,7 @@ defmodule Solid.Parser.Base do
               Solid.Tag.Continue,
               Solid.Tag.Counter,
               Solid.Tag.Comment,
+              Solid.Tag.Doc,
               Solid.Tag.Assign,
               Solid.Tag.Capture,
               Solid.Tag.If,
@@ -56,6 +57,8 @@ defmodule Solid.Parser.Base do
               Solid.Tag.Raw,
               Solid.Tag.Cycle,
               Solid.Tag.Render,
+              Solid.Tag.Include,
+              Solid.Tag.Liquid,
               Solid.Tag.Tablerow,
               Solid.Tag.Echo
             ],

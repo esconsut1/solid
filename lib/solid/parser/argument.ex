@@ -47,12 +47,29 @@ defmodule Solid.Parser.Argument do
     |> string()
     |> ignore()
     |> ignore(space())
-    |> concat(Variable.field())
+    |> concat(argument())
     |> ignore(space())
     |> ignore(string("as"))
     |> ignore(space())
     |> concat(argument_name())
     |> tag(:with_parameter)
+  end
+
+  def for_parameter do
+    "for"
+    |> string()
+    |> ignore()
+    |> ignore(space())
+    |> concat(argument())
+    |> ignore(space())
+    |> ignore(string("as"))
+    |> ignore(space())
+    |> concat(argument_name())
+    |> tag(:for_parameter)
+  end
+
+  def with_or_for_parameter do
+    choice([with_parameter(), for_parameter()])
   end
 
   def filter do

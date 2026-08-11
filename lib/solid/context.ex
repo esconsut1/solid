@@ -18,13 +18,14 @@ defmodule Solid.Context do
   @moduledoc false
   alias Solid.Indifferent
 
-  defstruct vars: %{}, counter_vars: %{}, iteration_vars: %{}, cycle_state: %{}, errors: []
+  defstruct vars: %{}, counter_vars: %{}, iteration_vars: %{}, cycle_state: %{}, for_registers: %{}, errors: []
 
   @type t :: %__MODULE__{
           vars: map,
           counter_vars: map,
           iteration_vars: %{optional(String.t()) => term},
           cycle_state: map,
+          for_registers: map,
           errors: list(Solid.UndefinedVariableError)
         }
   @type scope :: :counter_vars | :vars | :iteration_vars

@@ -4,9 +4,12 @@ defmodule Solid.Tag.For do
 
   import NimbleParsec
 
+  alias Solid.Forloop
+  alias Solid.LoopSlice
   alias Solid.Parser.Argument
   alias Solid.Parser.BaseTag
   alias Solid.Parser.Literal
+  alias Solid.Parser.LoopParameters
   alias Solid.Parser.Variable
 
   @impl true
@@ -23,27 +26,7 @@ defmodule Solid.Tag.For do
       |> ignore(string(")"))
       |> tag(:range)
 
-    delimit = choice([space |> concat(string(~s(,))) |> concat(space), space])
-
-    limit =
-      "limit"
-      |> string()
-      |> ignore()
-      |> ignore(space)
-      |> ignore(string(":"))
-      |> ignore(space)
-      |> unwrap_and_tag(integer(min: 1), :limit)
-      |> ignore(delimit)
-
-    offset =
-      "offset"
-      |> string()
-      |> ignore()
-      |> ignore(space)
-      |> ignore(string(":"))
-      |> ignore(space)
-      |> unwrap_and_tag(integer(min: 1), :offset)
-      |> ignore(delimit)
+    delimit = LoopParameters.delimit()
 
     sort_by =
       "sort_by"
@@ -80,10 +63,13 @@ defmodule Solid.Tag.For do
       |> ignore(delimit)
 
     for_parameters =
-      [limit, offset, sort_by, order, reversed]
-      |> choice()
-      |> repeat()
-      |> reduce({Enum, :into, [%{}]})
+      LoopParameters.reduce_parameters([
+        LoopParameters.limit(),
+        LoopParameters.offset(),
+        sort_by,
+        order,
+        reversed
+      ])
 
     BaseTag.opening_tag()
     |> ignore()
@@ -106,13 +92,20 @@ defmodule Solid.Tag.For do
 
   @impl true
   def render(
-        [{:field, [enumerable_key]}, {:enumerable, enumerable}, {:parameters, parameters} | _] = exp,
+        [{:field, [enumerable_key]}, {:enumerable, enumerable_ast}, {:parameters, parameters} | _] = exp,
         context,
         options
       ) do
-    {:ok, enumerable, context} = enumerable(enumerable, context)
+    {:ok, enumerable, context} = evaluate_enumerable(enumerable_ast, context)
+    loop_name = LoopSlice.loop_name(enumerable_key, enumerable_ast)
 
-    enumerable = apply_parameters(enumerable, parameters)
+    {enumerable, context} =
+      LoopSlice.apply(enumerable, Map.take(parameters, [:limit, :offset]), context, loop_name)
+
+    enumerable =
+      enumerable
+      |> sort_by(parameters)
+      |> reversed(parameters)
 
     do_for(enumerable_key, enumerable, exp, context, options)
   end
@@ -164,26 +157,13 @@ defmodule Solid.Tag.For do
 
   defp maybe_put_forloop_map(acc_context, key, index, loop_length) when key != "forloop" do
     parentloop = Map.get(acc_context.iteration_vars, "forloop")
-    map = build_forloop_map(index, loop_length, parentloop)
+    map = Forloop.build(index, loop_length, parentloop)
     iteration_vars = Map.put(acc_context.iteration_vars, "forloop", map)
     %{acc_context | iteration_vars: iteration_vars}
   end
 
   defp maybe_put_forloop_map(acc_context, _key, _index, _loop_length) do
     acc_context
-  end
-
-  defp build_forloop_map(index, loop_length, parentloop) do
-    %{
-      "index" => index + 1,
-      "index0" => index,
-      "rindex" => loop_length - index,
-      "rindex0" => loop_length - index - 1,
-      "first" => index == 0,
-      "last" => loop_length == index + 1,
-      "length" => loop_length,
-      "parentloop" => parentloop
-    }
   end
 
   defp restore_forloop(acc_context, %{iteration_vars: %{"forloop" => initial_forloop}}) do
@@ -200,38 +180,17 @@ defmodule Solid.Tag.For do
     %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
   end
 
-  defp enumerable([range: [first: first, last: last]], context) do
+  defp evaluate_enumerable([range: [first: first, last: last]], context) do
     {_, first, context} = integer_or_field(first, context)
     {_, last, context} = integer_or_field(last, context)
-    {:ok, first..last, context}
+    {:ok, Enum.to_list(first..last//1), context}
   end
 
-  defp enumerable(field, context) do
+  defp evaluate_enumerable(field, context) do
     {:ok, value, context} = Solid.Argument.get(field, context)
-    {:ok, value || [], context}
+    {:ok, Solid.Utils.enumerable_to_list(value || []), context}
   end
 
-  defp apply_parameters(enumerable, parameters) do
-    enumerable
-    |> offset(parameters)
-    |> limit(parameters)
-    |> sort_by(parameters)
-    |> reversed(parameters)
-  end
-
-  defp offset(enumerable, %{offset: offset}) do
-    Enum.slice(enumerable, offset..-1//1)
-  end
-
-  defp offset(enumerable, _), do: enumerable
-
-  defp limit(enumerable, %{limit: limit}) do
-    Enum.slice(enumerable, 0..(limit - 1)//1)
-  end
-
-  defp limit(enumerable, _), do: enumerable
-
-  # Sort by with Order
   defp sort_by([%{} | _] = enumerable, %{sort_by: {:field, fields}, order: order_by}) do
     if Enum.any?(fields, &(&1 in ~w(index index0 rindex rindex0 first last length parentloop))) do
       Enum.sort(enumerable, order_by)

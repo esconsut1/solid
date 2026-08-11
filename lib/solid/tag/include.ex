@@ -1,4 +1,4 @@
-defmodule Solid.Tag.Render do
+defmodule Solid.Tag.Include do
   @moduledoc false
   @behaviour Solid.Tag
 
@@ -17,19 +17,9 @@ defmodule Solid.Tag.Render do
 
     BaseTag.opening_tag()
     |> ignore()
-    |> ignore(string("render"))
+    |> ignore(string("include"))
     |> ignore(space)
     |> tag(Argument.argument(), :template)
-    |> tag(
-      optional(
-        ","
-        |> string()
-        |> ignore()
-        |> ignore(space)
-        |> concat(Argument.named_arguments())
-      ),
-      :arguments
-    )
     |> tag(
       optional(
         space
@@ -37,6 +27,16 @@ defmodule Solid.Tag.Render do
         |> concat(Argument.with_or_for_parameter())
       ),
       :with_or_for_parameter
+    )
+    |> tag(
+      optional(
+        space
+        |> ignore()
+        |> ignore(string(","))
+        |> ignore(space)
+        |> concat(Argument.named_arguments())
+      ),
+      :arguments
     )
     |> ignore(space)
     |> ignore(BaseTag.closing_tag())
@@ -56,26 +56,42 @@ defmodule Solid.Tag.Render do
       |> Solid.Argument.parse_named_arguments(context, options)
 
     binding_vars = binding_vars |> Enum.concat() |> Map.new()
+    alias_name = default_alias(template_name, with_or_for)
 
     case Partial.load_template(template_name, options) do
       {:ok, template} ->
-        render_partial(template, binding_vars, with_or_for, context, options)
+        render_partial(template, binding_vars, with_or_for, alias_name, context, options)
 
       {:error, exception} ->
         {[], Solid.Context.put_errors(context, [exception])}
     end
   end
 
-  defp render_partial(template, binding_vars, with_or_for, context, options) do
+  defp default_alias(_template_name, for_parameter: [_, alias_name]), do: alias_name
+  defp default_alias(_template_name, with_parameter: [_, alias_name]), do: alias_name
+
+  defp default_alias(template_name, _) do
+    template_name
+    |> to_string()
+    |> String.split("/")
+    |> List.last()
+  end
+
+  defp render_partial(template, binding_vars, with_or_for, alias_name, context, options) do
     case with_or_for do
-      [for_parameter: [variable, alias_name]] ->
+      [for_parameter: [variable, ^alias_name]] ->
         render_for_loop(template, variable, alias_name, binding_vars, context, options)
+
+      [for_parameter: [variable, item_alias]] ->
+        render_for_loop(template, variable, item_alias, binding_vars, context, options)
 
       [with_parameter: [variable, alias_name]] ->
         render_with(template, variable, alias_name, binding_vars, context, options)
 
       _ ->
-        {rendered, context} = Partial.render_isolated(template, binding_vars, context, options)
+        {:ok, value, context} = Solid.Argument.get([field: [alias_name]], context, options)
+        binding_vars = Map.put(binding_vars, alias_name, value)
+        {rendered, context} = Partial.render_shared(template, binding_vars, context, options)
         {[text: rendered], context}
     end
   end
@@ -83,7 +99,7 @@ defmodule Solid.Tag.Render do
   defp render_with(template, variable, alias_name, binding_vars, context, options) do
     {:ok, value, context} = Solid.Argument.get(variable, context, options)
     binding_vars = Map.put(binding_vars, alias_name, value)
-    {rendered, context} = Partial.render_isolated(template, binding_vars, context, options)
+    {rendered, context} = Partial.render_shared(template, binding_vars, context, options)
     {[text: rendered], context}
   end
 
@@ -97,7 +113,7 @@ defmodule Solid.Tag.Render do
       |> Enum.reduce({[], context}, fn {item, index}, {acc, context} ->
         forloop = Forloop.build(index, length(collection))
         item_binding = Map.merge(binding_vars, %{alias_name => item, "forloop" => forloop})
-        {rendered, context} = Partial.render_isolated(template, item_binding, context, options)
+        {rendered, context} = Partial.render_shared(template, item_binding, context, options)
         {[rendered | acc], context}
       end)
 

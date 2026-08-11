@@ -11,4 +11,9 @@ defmodule Solid.Utils do
   end
 
   def apply_lazy(value), do: value
+
+  def enumerable_to_list(list) when is_list(list), do: list
+  def enumerable_to_list(%Range{} = range), do: Enum.to_list(range)
+  def enumerable_to_list(nil), do: []
+  def enumerable_to_list(value), do: List.wrap(value)
 end

@@ -24,9 +24,15 @@ defmodule Solid.Tag.Comment do
 
     inline_comment =
       BaseTag.comment_tag()
-      |> ignore()
-      |> ignore(repeat(BaseTag.closing_tag() |> ignore() |> lookahead_not() |> utf8_char([])))
+      |> concat(
+        BaseTag.closing_tag()
+        |> lookahead_not()
+        |> utf8_char([])
+        |> repeat()
+        |> reduce({List, :to_string, []})
+      )
       |> ignore(BaseTag.closing_tag())
+      |> post_traverse({__MODULE__, :validate_inline_comment, []})
 
     choice([comment, inline_comment])
   end
@@ -34,5 +40,24 @@ defmodule Solid.Tag.Comment do
   @impl true
   def render(_tag, context, _options) do
     {[], context}
+  end
+
+  @doc false
+  def validate_inline_comment(rest, args, context, _line, _offset) do
+    markup =
+      case args do
+        [body] when is_binary(body) -> body
+        _ -> ""
+      end
+
+    if invalid_inline_comment?(markup) do
+      {:error, "invalid inline comment"}
+    else
+      {rest, [], context}
+    end
+  end
+
+  defp invalid_inline_comment?(markup) do
+    Regex.match?(~r/\n\s*[^#\s]/, markup)
   end
 end
