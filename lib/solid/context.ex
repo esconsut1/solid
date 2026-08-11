@@ -133,18 +133,27 @@ defmodule Solid.Context do
     end
   end
 
-  defp do_get_in(data, [key | keys]) when is_map(data) do
-    case Indifferent.fetch(data, key) do
-      {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
-      {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
-      _ -> do_get_in(data, [String.to_atom(key) | keys])
-    end
-  end
-
+  # Integer keys: list index OR map key (e.g. %{0 => "val"}), never String.to_atom/1.
   defp do_get_in(data, [key | keys]) when is_integer(key) and is_list(data) do
     case Enum.fetch(data, key) do
       {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
       _ -> {:error, :not_found}
+    end
+  end
+
+  defp do_get_in(data, [key | keys]) when is_integer(key) and is_map(data) do
+    case Indifferent.fetch(data, key) do
+      {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
+      {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
+      _ -> {:error, :not_found}
+    end
+  end
+
+  defp do_get_in(data, [key | keys]) when is_map(data) and is_binary(key) do
+    case Indifferent.fetch(data, key) do
+      {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
+      {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
+      _ -> do_get_in(data, [String.to_atom(key) | keys])
     end
   end
 

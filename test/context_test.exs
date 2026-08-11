@@ -59,6 +59,16 @@ defmodule Solid.ContextTest do
       assert Context.get_in(context, ["x", 1], [:vars]) == {:ok, "b"}
     end
 
+    test "integer key on map returns not_found without crashing" do
+      context = %Context{vars: %{"x" => %{"a" => 1}}}
+      assert Context.get_in(context, ["x", 0], [:vars]) == {:error, {:not_found, ["x", 0]}}
+    end
+
+    test "existing integer key on map" do
+      context = %Context{vars: %{"x" => %{0 => "zero", 1 => "one"}}}
+      assert Context.get_in(context, ["x", 0], [:vars]) == {:ok, "zero"}
+    end
+
     test "list size" do
       context = %Context{vars: %{"x" => ["a", "b", "c"]}}
       assert Context.get_in(context, ["x", "size"], [:vars]) == {:ok, 3}
