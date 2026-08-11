@@ -136,22 +136,24 @@ defmodule Solid.Tag.For do
 
           try do
             {result, acc_context} = Solid.render(exp, acc_context, options)
-            acc_context = restore_initial_forloop_value(acc_context, acc_context_initial)
+            acc_context = restore_forloop(acc_context, acc_context_initial)
             {[result | acc_result], acc_context}
           catch
             {:break_exp, result, context} ->
+              context = restore_forloop(context, acc_context_initial)
               throw({:result, [result | acc_result], context})
 
             {:continue_exp, result, context} ->
+              context = restore_forloop(context, acc_context_initial)
               {[result | acc_result], context}
           end
       end
 
-    context = %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
+    context = cleanup_for_loop(context, enumerable_key)
     {[text: Enum.reverse(result)], context}
   catch
     {:result, result, context} ->
-      context = %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
+      context = cleanup_for_loop(context, enumerable_key)
       {[text: Enum.reverse(result)], context}
   end
 
@@ -161,7 +163,8 @@ defmodule Solid.Tag.For do
   end
 
   defp maybe_put_forloop_map(acc_context, key, index, loop_length) when key != "forloop" do
-    map = build_forloop_map(index, loop_length)
+    parentloop = Map.get(acc_context.iteration_vars, "forloop")
+    map = build_forloop_map(index, loop_length, parentloop)
     iteration_vars = Map.put(acc_context.iteration_vars, "forloop", map)
     %{acc_context | iteration_vars: iteration_vars}
   end
@@ -170,7 +173,7 @@ defmodule Solid.Tag.For do
     acc_context
   end
 
-  defp build_forloop_map(index, loop_length) do
+  defp build_forloop_map(index, loop_length, parentloop) do
     %{
       "index" => index + 1,
       "index0" => index,
@@ -178,17 +181,23 @@ defmodule Solid.Tag.For do
       "rindex0" => loop_length - index - 1,
       "first" => index == 0,
       "last" => loop_length == index + 1,
-      "length" => loop_length
+      "length" => loop_length,
+      "parentloop" => parentloop
     }
   end
 
-  defp restore_initial_forloop_value(acc_context, %{iteration_vars: %{"forloop" => initial_forloop}}) do
+  defp restore_forloop(acc_context, %{iteration_vars: %{"forloop" => initial_forloop}}) do
     iteration_vars = Map.put(acc_context.iteration_vars, "forloop", initial_forloop)
     %{acc_context | iteration_vars: iteration_vars}
   end
 
-  defp restore_initial_forloop_value(acc_context, _) do
-    acc_context
+  defp restore_forloop(acc_context, _) do
+    iteration_vars = Map.delete(acc_context.iteration_vars, "forloop")
+    %{acc_context | iteration_vars: iteration_vars}
+  end
+
+  defp cleanup_for_loop(context, enumerable_key) do
+    %{context | iteration_vars: Map.delete(context.iteration_vars, enumerable_key)}
   end
 
   defp enumerable([range: [first: first, last: last]], context) do
@@ -224,7 +233,7 @@ defmodule Solid.Tag.For do
 
   # Sort by with Order
   defp sort_by([%{} | _] = enumerable, %{sort_by: {:field, fields}, order: order_by}) do
-    if Enum.any?(fields, &(&1 in ~w(index index0 rindex rindex0 first last length))) do
+    if Enum.any?(fields, &(&1 in ~w(index index0 rindex rindex0 first last length parentloop))) do
       Enum.sort(enumerable, order_by)
     else
       Enum.sort_by(

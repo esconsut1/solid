@@ -279,6 +279,49 @@ defmodule Solid.Integration.TagsTest do
                %UndefinedVariableError{variable: ["variable1"]}
              ]
     end
+
+    test "for with limit" do
+      text = "{% for item in array limit:2 %}{{ item }} {% endfor %}"
+      assert render(text, %{"array" => [1, 2, 3, 4, 5, 6]}) == "1 2 "
+    end
+
+    test "for with offset" do
+      text = "{% for item in array offset:2 %}{{ item }} {% endfor %}"
+      assert render(text, %{"array" => [1, 2, 3, 4, 5, 6]}) == "3 4 5 6 "
+    end
+
+    test "for with limit and offset" do
+      text = "{% for item in array limit:2 offset:2 %}{{ item }} {% endfor %}"
+      assert render(text, %{"array" => [1, 2, 3, 4, 5, 6]}) == "3 4 "
+    end
+
+    test "forloop properties" do
+      text = """
+      {%- for value in values -%}
+        {{ forloop.index }}/{{ forloop.index0 }}/{{ forloop.rindex }}/{{ forloop.rindex0 }}/{{ forloop.length }}/{{ forloop.first }}/{{ forloop.last }}
+      {%- endfor -%}
+      """
+
+      assert render(text, %{"values" => ["a", "b", "c"]}) ==
+               "1/0/3/2/3/true/false2/1/2/1/3/false/false3/2/1/0/3/false/true"
+    end
+
+    test "forloop.parentloop" do
+      text = """
+      {%- for i in (1..2) -%}
+        {%- for j in (1..2) -%}
+          {{ forloop.parentloop.index }}-{{ forloop.index }}
+        {%- endfor -%}
+      {%- endfor -%}
+      """
+
+      assert render(text, %{}) == "1-11-22-12-2"
+    end
+
+    test "forloop.parentloop is nil outside nested loops" do
+      text = "{%- for i in (1..1) -%}{{ forloop.parentloop.index }}{% endfor %}"
+      assert render(text, %{}) == ""
+    end
   end
 
   describe "assign" do
