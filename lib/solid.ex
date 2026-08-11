@@ -115,6 +115,9 @@ defmodule Solid do
   @spec render(%Template{}, map, Keyword.t()) :: {:ok, iolist} | {:error, list(errors), iolist}
   @spec render(list, %Context{}, Keyword.t()) :: {iolist, %Context{}}
   def render(%Template{parsed_template: parsed_template}, hash, options) do
+    options =
+      Keyword.put_new(options, :custom_filters, Application.get_env(:solid, :custom_filters))
+
     context = %Context{counter_vars: hash}
     {result, context} = render(parsed_template, context, options)
     process_result(result, context)
@@ -124,6 +127,9 @@ defmodule Solid do
   end
 
   def render(text, %Context{} = context, options) do
+    options =
+      Keyword.put_new(options, :custom_filters, Application.get_env(:solid, :custom_filters))
+
     {result, context} =
       for entry <- text, reduce: {[], context} do
         {acc, context} ->

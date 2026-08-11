@@ -16,6 +16,8 @@ defmodule Solid.Filter do
   {:error, %Solid.UndefinedFilterError{filter: "no_filter_here"}, 1}
   """
   def apply(filter, args, opts) do
+    # `Solid.render/3` resolves `:custom_filters` once and passes it down.
+    # This fallback keeps backwards compatibility for direct/standalone calls.
     custom_module = opts[:custom_filters] || Application.get_env(:solid, :custom_filters)
     strict_variables = Keyword.get(opts, :strict_filters, false)
     args_with_opts = args ++ [opts]
@@ -60,10 +62,14 @@ defmodule Solid.Filter do
     end
   end
 
+  # `binary_to_existing_atom/2` returns an atom only if it already exists
+  # in the VM (i.e. no new atoms are created at runtime).
   defp safe_existing_atom(func) do
-    {:ok, String.to_existing_atom(func)}
+    {:ok, :erlang.binary_to_existing_atom(func, :utf8)}
   rescue
     ArgumentError -> :error
+  catch
+    :error -> :error
   end
 
   defp any_to_float(string) when byte_size(string) > 0 do
@@ -76,23 +82,12 @@ defmodule Solid.Filter do
   defp any_to_float(number) when is_number(number), do: number
   defp any_to_float(_), do: nil
 
-  defp number_trunc(number) do
-    number
-    |> to_string()
-    |> String.split(".", trim: true)
-    |> _number_trunc()
-  end
-
-  defp _number_trunc([head]), do: String.to_integer(head)
-  defp _number_trunc([head, "0"]), do: String.to_integer(head)
-
-  defp _number_trunc([head, tail]) do
-    float = head <> "." <> tail
-
-    case Float.parse(float) do
-      {float, ""} -> float
-      _ -> nil
-    end
+  defp number_trunc(number) when is_integer(number), do: number
+  # Historically we converted floats through a string round-trip so that
+  # "x.0" became integer `x`. We can do the same without allocations.
+  defp number_trunc(number) when is_float(number) do
+    i = trunc(number)
+    if i == number, do: i, else: number
   end
 
   defp as_array(input) when is_list(input), do: List.flatten(input)
@@ -740,6 +735,8 @@ defmodule Solid.Filter do
     do_last_index(input, string, 0, nil)
   end
 
+  # Overlap-aware "last index" used by `replace_last/3`.
+  # `:binary.matches/2` is non-overlapping, but Liquid semantics allow overlaps.
   defp do_last_index("", _string, _index, last), do: last
 
   defp do_last_index(input, string, index, last) do

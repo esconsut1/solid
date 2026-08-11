@@ -45,13 +45,18 @@ defmodule Solid.Context do
   """
   @spec get_in(t(), [term()], [scope]) :: {:ok, term} | {:error, {:not_found, [term()]}}
   def get_in(context, key, scopes) do
-    scopes
-    |> Enum.reverse()
-    |> Enum.map(&(context |> Map.get(&1) |> do_get_in(key)))
-    |> Enum.reduce({:error, {:not_found, key}}, fn
-      {:ok, nil}, {:ok, _} = acc -> acc
-      {:ok, _} = value, _acc -> value
-      _value, acc -> acc
+    # `scopes` is already ordered by precedence (highest priority first).
+    # - First non-nil value wins (we can stop immediately).
+    # - If we find nil, we still keep searching in case a lower-priority scope
+    #   contains a non-nil value (nil should count as "defined" for strict vars).
+    Enum.reduce_while(scopes, {:error, {:not_found, key}}, fn scope, acc ->
+      value = context |> Map.get(scope) |> do_get_in(key)
+
+      case value do
+        {:ok, nil} -> {:cont, {:ok, nil}}
+        {:ok, _} = ok -> {:halt, ok}
+        _other -> {:cont, acc}
+      end
     end)
   end
 

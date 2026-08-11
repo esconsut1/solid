@@ -13,15 +13,21 @@ defmodule Solid.Indifferent do
         result
 
       :error ->
-        # try either a string or atom
+        # try either a string or an existing atom (avoid creating new atoms)
         cond do
-          is_binary(key) -> access(data, String.to_atom(key))
+          is_binary(key) -> access(data, existing_or_new_atom(key))
           is_atom(key) -> access(data, Atom.to_string(key))
           true -> :error
         end
     end
+  end
+
+  defp existing_or_new_atom(bin) when is_binary(bin) do
+    :erlang.binary_to_existing_atom(bin, :utf8)
   rescue
-    ArgumentError -> :error
+    ArgumentError -> String.to_atom(bin)
+  catch
+    :error -> String.to_atom(bin)
   end
 
   # Access a map/struct by key using either Map.fetch/2 or Access.fetch/2
