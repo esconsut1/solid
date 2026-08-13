@@ -69,6 +69,18 @@ defmodule Solid.ContextTest do
       assert Context.get_in(context, ["x", 0], [:vars]) == {:ok, "zero"}
     end
 
+    test "tuple pair access like a keyword entry" do
+      context = %Context{iteration_vars: %{"x" => {"key", "value"}}}
+      assert Context.get_in(context, ["x", 0], [:iteration_vars]) == {:ok, "key"}
+      assert Context.get_in(context, ["x", 1], [:iteration_vars]) == {:ok, "value"}
+    end
+
+    test "list of tuple pairs" do
+      context = %Context{vars: %{"y" => [{"key", "value"}]}}
+      assert Context.get_in(context, ["y", 0, 0], [:vars]) == {:ok, "key"}
+      assert Context.get_in(context, ["y", 0, 1], [:vars]) == {:ok, "value"}
+    end
+
     test "list size" do
       context = %Context{vars: %{"x" => ["a", "b", "c"]}}
       assert Context.get_in(context, ["x", "size"], [:vars]) == {:ok, 3}

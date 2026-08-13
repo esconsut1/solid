@@ -322,6 +322,20 @@ defmodule Solid.Integration.TagsTest do
       text = "{%- for i in (1..1) -%}{{ forloop.parentloop.index }}{% endfor %}"
       assert render(text, %{}) == ""
     end
+
+    test "for over map yields key/value pairs" do
+      text = "{%- for x in y -%}{{ x[0] }}={{ x[1] }}{%- endfor -%}"
+      assert render(text, %{"y" => %{"key" => "value"}}) == "key=value"
+    end
+
+    test "for over map iterates each pair" do
+      text = "{%- for x in y -%}{{ x[0] }}={{ x[1] }};{%- endfor -%}"
+
+      assert text
+             |> render(%{"y" => %{"a" => "1", "b" => "2"}})
+             |> String.split(";", trim: true)
+             |> Enum.sort() == ["a=1", "b=2"]
+    end
   end
 
   describe "assign" do

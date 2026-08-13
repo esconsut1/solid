@@ -94,6 +94,12 @@ defmodule Solid.Context do
   defp do_get_in(nil, _), do: {:error, :not_found}
   defp do_get_in(data, []), do: {:ok, data}
 
+  # Map entries and keyword pairs are 2-tuples: `{key, value}`.
+  # Liquid treats those like a 2-element array, so `x[0]`/`x[1]` are key/value.
+  defp do_get_in(data, keys) when is_tuple(data) do
+    data |> Tuple.to_list() |> do_get_in(keys)
+  end
+
   defp do_get_in(data, ["size"]) when is_list(data) do
     {:ok, length(data)}
   end
@@ -143,7 +149,6 @@ defmodule Solid.Context do
 
   defp do_get_in(data, [key | keys]) when is_integer(key) and is_map(data) do
     case Indifferent.fetch(data, key) do
-      {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
       {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
       _ -> {:error, :not_found}
     end
@@ -151,7 +156,6 @@ defmodule Solid.Context do
 
   defp do_get_in(data, [key | keys]) when is_map(data) and is_binary(key) do
     case Indifferent.fetch(data, key) do
-      {:ok, value} when is_tuple(value) -> value |> Tuple.to_list() |> do_get_in(keys)
       {:ok, value} -> value |> Solid.Utils.apply_lazy() |> do_get_in(keys)
       _ -> do_get_in(data, [String.to_atom(key) | keys])
     end
